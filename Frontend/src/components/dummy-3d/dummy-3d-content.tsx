@@ -1,6 +1,9 @@
 import { useRef } from "react";
+import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { Plus, Minus, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Procedural training dummy built from primitive shapes.

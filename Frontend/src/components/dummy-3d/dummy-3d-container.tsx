@@ -1,6 +1,5 @@
 import { useRef, useState, lazy, Suspense } from "react";
-import { Plus, Minus, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import * as THREE from "three";
 
 // Check if we're in a test environment (jsdom doesn't support WebGL)
 const isTestEnvironment =
