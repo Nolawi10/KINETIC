@@ -1,18 +1,375 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useEffect,useState } from 'react';
-import { ArrowUpRight,Download,Clock,Target,Zap,Gauge } from 'lucide-react';
-import { ResponsiveContainer,PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip,RadarChart,PolarGrid,PolarAngleAxis,Radar } from 'recharts';
-import { TacticalShell,Instrument,tacticalHead } from '@/components/tactical-shell';
-import { Button } from '@/components/ui/button';
-import { Select,SelectTrigger,SelectValue,SelectContent,SelectItem } from '@/components/ui/select';
-import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription } from '@/components/ui/dialog';
-import { useAccount } from '@/components/kinetic-account';
-import { supabase } from '@/integrations/supabase/client';
-import { demoSessions,filterSessions,formatTime,intensity,type TrainingSession } from '@/lib/kinetic-data';
-import { CombatAnalyticsOverview } from '@/components/combat-analytics-overview';
-import { SensorSimAnalytics } from '@/components/sensor-sim-analytics';
-import { TelemetryExport } from '@/components/telemetry-export';
-import { SparringAnalysis } from '@/components/sparring-analysis';
-export const Route=createFileRoute('/analytics')({head:()=>tacticalHead('Analytics & Performance','KINETIC training reports, technique trends, historical telemetry and AI sparring video analysis.'),component:AnalyticsPage});
-function AnalyticsPage(){const [range,setRange]=useState('Last 7 Days');const [discipline,setDiscipline]=useState('All disciplines');const [saved,setSaved]=useState<TrainingSession[]>([]);const [report,setReport]=useState<TrainingSession|null>(null);const [error,setError]=useState('');const {user}=useAccount();useEffect(()=>{if(!user){setSaved([]);return;}supabase.from('training_sessions').select('*').order('created_at',{ascending:false}).then(({data,error})=>{if(error)setError(error.message);else setSaved(data??[]);});},[user]);const rows=filterSessions([...saved,...demoSessions],range,discipline);const total=rows.reduce((s,r)=>s+r.strikes,0);const duration=rows.reduce((s,r)=>s+r.duration_seconds,0);const speed=rows.length?rows.reduce((s,r)=>s+Number(r.max_speed)*.72,0)/rows.length:0;const mixes=[{name:'Jabs',value:38},{name:'Crosses',value:27},{name:'Hooks',value:21},{name:'Kicks',value:14}];const timeline=Array.from({length:9},(_,i)=>({minute:`${i*2}m`,speed:rows.length?+(speed+Math.sin(i*.9)*1.7).toFixed(1):0,volume:rows.length?Math.round(total/Math.max(1,duration/60)+Math.sin(i)*5):0}));const radar=['Velocity','Guard Height','Reaction Time','Combo Fluidity','Stance Balance'].map((name,i)=>({name,score:rows.length?[85,79,88,74,94][i]:0,previous:rows.length?[70,64,75,63,79][i]:0}));
-return <TacticalShell title="ANALYTICS & PERFORMANCE" index="POST-SESSION INTELLIGENCE" actions={<TelemetryExport rows={rows}/>}><div className="analytics-filter"><div className="range-tabs">{['Today','Last 7 Days','Last 30 Days','All Time'].map(r=><Button key={r} variant="ghost" data-active={range===r} onClick={()=>setRange(r)}>{r}</Button>)}</div><Select value={discipline} onValueChange={setDiscipline}><SelectTrigger aria-label="Analytics discipline"><SelectValue/></SelectTrigger><SelectContent>{['All disciplines','MMA','Boxing','Muay Thai','Taekwondo'].map(d=><SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div><CombatAnalyticsOverview/><SensorSimAnalytics/><div className="metrics-heading"><span>HISTORICAL PERFORMANCE OVERVIEW</span><span>DEMO HISTORY + SAVED SESSIONS · SIMULATED METRICS</span></div><div className="kpi-grid">{[{label:'TOTAL TRAINING TIME',value:`${Math.floor(duration/3600)}h ${Math.floor(duration%3600/60)}m`,detail:`${rows.length} sessions logged`,icon:Clock},{label:'TOTAL STRIKES THROWN',value:total.toLocaleString(),detail:'94.2% form accuracy · demo',icon:Target},{label:'AVG STRIKE VELOCITY',value:`${speed.toFixed(1)} m/s`,detail:'↗ +8.4% vs last week · demo',icon:Zap},{label:'SESSION INTENSITY',value:`${intensity(total,duration)} / 100`,detail:'Strike density × training volume',icon:Gauge}].map(k=><div className="kpi" key={k.label}><div><span>{k.label}</span><k.icon/></div><strong>{k.value}</strong><small>{k.detail}</small></div>)}</div><div className="charts-grid"><Instrument title="STRIKE MIX BREAKDOWN" tag="SIMULATED"><div className="donut-layout"><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={rows.length?mixes:[]} dataKey="value" innerRadius="65%" outerRadius="90%" stroke="var(--surface-panel)" paddingAngle={4}>{mixes.map((m,i)=><Cell key={m.name} fill={`var(--chart-${i+1})`}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer><div className="donut-center"><strong>{total.toLocaleString()}</strong><span>STRIKES</span></div></div><div className="chart-legend">{mixes.map((m,i)=><div key={m.name}><i className={`chart-swatch swatch-${i+1}`}/><span>{m.name}</span><strong>{rows.length?m.value:0}%</strong></div>)}</div></div></Instrument><Instrument title="STAMINA & SPEED TIMELINE" tag="SIMULATED"><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><LineChart data={timeline}><CartesianGrid stroke="var(--border)" vertical={false}/><XAxis dataKey="minute" stroke="var(--muted-foreground)" fontSize={10}/><YAxis yAxisId="speed" stroke="var(--primary)" fontSize={10} width={30}/><YAxis yAxisId="volume" orientation="right" stroke="var(--chart-2)" fontSize={10} width={30}/><Tooltip/><Line type="monotone" yAxisId="speed" dataKey="speed" name="Speed (m/s)" stroke="var(--primary)" strokeWidth={2} dot={false}/><Line type="monotone" yAxisId="volume" dataKey="volume" name="Strikes/min" stroke="var(--chart-2)" strokeWidth={2} dot={false}/></LineChart></ResponsiveContainer></div><div className="chart-key"><span className="accent-cyan">— Strike speed (m/s)</span><span className="warning-text">— Strike volume / min</span></div></Instrument><Instrument title="TECHNIQUE IMPROVEMENT" tag="SIMULATED"><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><RadarChart data={radar} outerRadius="64%"><PolarGrid stroke="var(--border)"/><PolarAngleAxis dataKey="name" tick={{fill:'var(--muted-foreground)',fontSize:10}}/><Radar dataKey="previous" stroke="var(--chart-2)" fill="var(--chart-2)" fillOpacity={.08}/><Radar dataKey="score" stroke="var(--primary)" fill="var(--primary)" fillOpacity={.18}/><Tooltip/></RadarChart></ResponsiveContainer></div><div className="chart-key"><span className="accent-cyan">— Current</span><span className="warning-text">— Previous</span></div></Instrument></div><Instrument title="RECENT SESSIONS" tag={`${rows.length} RECORDS`} className="session-table-wrap"><div className="table-scroll"><table className="session-table"><thead><tr>{['DATE / TIME','DISCIPLINE','DURATION','TOTAL STRIKES','MAX SPEED','REPORT'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{new Date(r.created_at).toLocaleDateString('en-GB')}<small>{r.id.startsWith('demo')?'DEMO SESSION':'SAVED SIMULATION'}</small></td><td>{r.discipline}</td><td>{formatTime(r.duration_seconds)}</td><td>{r.strikes}</td><td className="accent-cyan">{Number(r.max_speed).toFixed(1)} m/s</td><td><Button variant="ghost" size="sm" onClick={()=>setReport(r)}>View Full Report<ArrowUpRight/></Button></td></tr>)}</tbody></table>{!rows.length&&<p className="tactical-notice">No sessions in this date range and discipline.</p>}</div></Instrument>{error&&<p className="warning-text">{error}</p>}<SparringAnalysis/><Dialog open={!!report} onOpenChange={v=>{if(!v)setReport(null);}}><DialogContent className="tactical-dialog"><DialogHeader><DialogTitle>SESSION INTELLIGENCE REPORT</DialogTitle><DialogDescription>{report?.discipline} · {report?.created_at.slice(0,10)} · Simulated telemetry</DialogDescription></DialogHeader>{report&&<><div className="report-metrics"><span>Duration<strong>{formatTime(report.duration_seconds)}</strong></span><span>Strikes<strong>{report.strikes}</strong></span><span>Max speed<strong>{report.max_speed} m/s</strong></span></div><h3>TACTICAL REVIEW · DEMO</h3><p>Guard recovery is your next priority. Reset both hands after each combination and maintain a balanced stance on the exit.</p><p className="micro-label">Training drill: 3 × 2-minute jab-cross-reset rounds. This is a demonstration report, not AI analysis of your session.</p></>}</DialogContent></Dialog></TacticalShell>;}
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { ArrowUpRight, Download, Clock, Target, Zap, Gauge } from "lucide-react";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  Radar,
+} from "recharts";
+import { TacticalShell, Instrument, tacticalHead } from "@/components/tactical-shell";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useAccount } from "@/components/kinetic-account";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  demoSessions,
+  filterSessions,
+  formatTime,
+  intensity,
+  type TrainingSession,
+} from "@/lib/kinetic-data";
+import { CombatAnalyticsOverview } from "@/components/combat-analytics-overview";
+import { SensorSimAnalytics } from "@/components/sensor-sim-analytics";
+import { TelemetryExport } from "@/components/telemetry-export";
+import { SparringAnalysis } from "@/components/sparring-analysis";
+export const Route = createFileRoute("/analytics")({
+  head: () =>
+    tacticalHead(
+      "Analytics & Performance",
+      "KINETIC training reports, technique trends, historical telemetry and AI sparring video analysis.",
+    ),
+  component: AnalyticsPage,
+});
+function AnalyticsPage() {
+  const [range, setRange] = useState("Last 7 Days");
+  const [discipline, setDiscipline] = useState("All disciplines");
+  const [saved, setSaved] = useState<TrainingSession[]>([]);
+  const [report, setReport] = useState<TrainingSession | null>(null);
+  const [error, setError] = useState("");
+  const { user } = useAccount();
+  useEffect(() => {
+    if (!user) {
+      setSaved([]);
+      return;
+    }
+    supabase
+      .from("training_sessions")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        else setSaved(data ?? []);
+      });
+  }, [user]);
+  const rows = filterSessions([...saved, ...demoSessions], range, discipline);
+  const total = rows.reduce((s, r) => s + r.strikes, 0);
+  const duration = rows.reduce((s, r) => s + r.duration_seconds, 0);
+  const speed = rows.length
+    ? rows.reduce((s, r) => s + Number(r.max_speed) * 0.72, 0) / rows.length
+    : 0;
+  const mixes = [
+    { name: "Jabs", value: 38 },
+    { name: "Crosses", value: 27 },
+    { name: "Hooks", value: 21 },
+    { name: "Kicks", value: 14 },
+  ];
+  const timeline = Array.from({ length: 9 }, (_, i) => ({
+    minute: `${i * 2}m`,
+    speed: rows.length ? +(speed + Math.sin(i * 0.9) * 1.7).toFixed(1) : 0,
+    volume: rows.length ? Math.round(total / Math.max(1, duration / 60) + Math.sin(i) * 5) : 0,
+  }));
+  const radar = [
+    "Velocity",
+    "Guard Height",
+    "Reaction Time",
+    "Combo Fluidity",
+    "Stance Balance",
+  ].map((name, i) => ({
+    name,
+    score: rows.length ? [85, 79, 88, 74, 94][i] : 0,
+    previous: rows.length ? [70, 64, 75, 63, 79][i] : 0,
+  }));
+  return (
+    <TacticalShell
+      title="ANALYTICS & PERFORMANCE"
+      index="POST-SESSION INTELLIGENCE"
+      actions={<TelemetryExport rows={rows} />}
+    >
+      <div className="analytics-filter">
+        <div className="range-tabs">
+          {["Today", "Last 7 Days", "Last 30 Days", "All Time"].map((r) => (
+            <Button key={r} variant="ghost" data-active={range === r} onClick={() => setRange(r)}>
+              {r}
+            </Button>
+          ))}
+        </div>
+        <Select value={discipline} onValueChange={setDiscipline}>
+          <SelectTrigger aria-label="Analytics discipline">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {["All disciplines", "MMA", "Boxing", "Muay Thai", "Taekwondo"].map((d) => (
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <CombatAnalyticsOverview />
+      <SensorSimAnalytics />
+      <div className="metrics-heading">
+        <span>HISTORICAL PERFORMANCE OVERVIEW</span>
+        <span>DEMO HISTORY + SAVED SESSIONS · SIMULATED METRICS</span>
+      </div>
+      <div className="kpi-grid">
+        {[
+          {
+            label: "TOTAL TRAINING TIME",
+            value: `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`,
+            detail: `${rows.length} sessions logged`,
+            icon: Clock,
+          },
+          {
+            label: "TOTAL STRIKES THROWN",
+            value: total.toLocaleString(),
+            detail: "94.2% form accuracy · demo",
+            icon: Target,
+          },
+          {
+            label: "AVG STRIKE VELOCITY",
+            value: `${speed.toFixed(1)} m/s`,
+            detail: "↗ +8.4% vs last week · demo",
+            icon: Zap,
+          },
+          {
+            label: "SESSION INTENSITY",
+            value: `${intensity(total, duration)} / 100`,
+            detail: "Strike density × training volume",
+            icon: Gauge,
+          },
+        ].map((k) => (
+          <div className="kpi" key={k.label}>
+            <div>
+              <span>{k.label}</span>
+              <k.icon />
+            </div>
+            <strong>{k.value}</strong>
+            <small>{k.detail}</small>
+          </div>
+        ))}
+      </div>
+      <div className="charts-grid">
+        <Instrument title="STRIKE MIX BREAKDOWN" tag="SIMULATED">
+          <div className="donut-layout">
+            <div className="chart-box">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={rows.length ? mixes : []}
+                    dataKey="value"
+                    innerRadius="65%"
+                    outerRadius="90%"
+                    stroke="var(--surface-panel)"
+                    paddingAngle={4}
+                  >
+                    {mixes.map((m, i) => (
+                      <Cell key={m.name} fill={`var(--chart-${i + 1})`} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="donut-center">
+                <strong>{total.toLocaleString()}</strong>
+                <span>STRIKES</span>
+              </div>
+            </div>
+            <div className="chart-legend">
+              {mixes.map((m, i) => (
+                <div key={m.name}>
+                  <i className={`chart-swatch swatch-${i + 1}`} />
+                  <span>{m.name}</span>
+                  <strong>{rows.length ? m.value : 0}%</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Instrument>
+        <Instrument title="STAMINA & SPEED TIMELINE" tag="SIMULATED">
+          <div className="chart-box">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timeline}>
+                <CartesianGrid stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="minute" stroke="var(--muted-foreground)" fontSize={10} />
+                <YAxis yAxisId="speed" stroke="var(--primary)" fontSize={10} width={30} />
+                <YAxis
+                  yAxisId="volume"
+                  orientation="right"
+                  stroke="var(--chart-2)"
+                  fontSize={10}
+                  width={30}
+                />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  yAxisId="speed"
+                  dataKey="speed"
+                  name="Speed (m/s)"
+                  stroke="var(--primary)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  yAxisId="volume"
+                  dataKey="volume"
+                  name="Strikes/min"
+                  stroke="var(--chart-2)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="chart-key">
+            <span className="accent-cyan">— Strike speed (m/s)</span>
+            <span className="warning-text">— Strike volume / min</span>
+          </div>
+        </Instrument>
+        <Instrument title="TECHNIQUE IMPROVEMENT" tag="SIMULATED">
+          <div className="chart-box">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radar} outerRadius="64%">
+                <PolarGrid stroke="var(--border)" />
+                <PolarAngleAxis
+                  dataKey="name"
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+                />
+                <Radar
+                  dataKey="previous"
+                  stroke="var(--chart-2)"
+                  fill="var(--chart-2)"
+                  fillOpacity={0.08}
+                />
+                <Radar
+                  dataKey="score"
+                  stroke="var(--primary)"
+                  fill="var(--primary)"
+                  fillOpacity={0.18}
+                />
+                <Tooltip />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="chart-key">
+            <span className="accent-cyan">— Current</span>
+            <span className="warning-text">— Previous</span>
+          </div>
+        </Instrument>
+      </div>
+      <Instrument
+        title="RECENT SESSIONS"
+        tag={`${rows.length} RECORDS`}
+        className="session-table-wrap"
+      >
+        <div className="table-scroll">
+          <table className="session-table">
+            <thead>
+              <tr>
+                {[
+                  "DATE / TIME",
+                  "DISCIPLINE",
+                  "DURATION",
+                  "TOTAL STRIKES",
+                  "MAX SPEED",
+                  "REPORT",
+                ].map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    {new Date(r.created_at).toLocaleDateString("en-GB")}
+                    <small>{r.id.startsWith("demo") ? "DEMO SESSION" : "SAVED SIMULATION"}</small>
+                  </td>
+                  <td>{r.discipline}</td>
+                  <td>{formatTime(r.duration_seconds)}</td>
+                  <td>{r.strikes}</td>
+                  <td className="accent-cyan">{Number(r.max_speed).toFixed(1)} m/s</td>
+                  <td>
+                    <Button variant="ghost" size="sm" onClick={() => setReport(r)}>
+                      View Full Report
+                      <ArrowUpRight />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!rows.length && (
+            <p className="tactical-notice">No sessions in this date range and discipline.</p>
+          )}
+        </div>
+      </Instrument>
+      {error && <p className="warning-text">{error}</p>}
+      <SparringAnalysis />
+      <Dialog
+        open={!!report}
+        onOpenChange={(v) => {
+          if (!v) setReport(null);
+        }}
+      >
+        <DialogContent className="tactical-dialog">
+          <DialogHeader>
+            <DialogTitle>SESSION INTELLIGENCE REPORT</DialogTitle>
+            <DialogDescription>
+              {report?.discipline} · {report?.created_at.slice(0, 10)} · Simulated telemetry
+            </DialogDescription>
+          </DialogHeader>
+          {report && (
+            <>
+              <div className="report-metrics">
+                <span>
+                  Duration<strong>{formatTime(report.duration_seconds)}</strong>
+                </span>
+                <span>
+                  Strikes<strong>{report.strikes}</strong>
+                </span>
+                <span>
+                  Max speed<strong>{report.max_speed} m/s</strong>
+                </span>
+              </div>
+              <h3>TACTICAL REVIEW · DEMO</h3>
+              <p>
+                Guard recovery is your next priority. Reset both hands after each combination and
+                maintain a balanced stance on the exit.
+              </p>
+              <p className="micro-label">
+                Training drill: 3 × 2-minute jab-cross-reset rounds. This is a demonstration report,
+                not AI analysis of your session.
+              </p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </TacticalShell>
+  );
+}

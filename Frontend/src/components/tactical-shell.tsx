@@ -1,10 +1,92 @@
-import type { ReactNode } from 'react';
-import { LogIn, LogOut, ShieldCheck } from 'lucide-react';
-import { KineticNavigation } from '@/components/kinetic-navigation';
-import { Button } from '@/components/ui/button';
-import { useAccount } from './kinetic-account';
-import { supabase } from '@/integrations/supabase/client';
-import { useBackendStatus, formatBackendStatus } from '@/hooks/use-backend-status';
-export function tacticalHead(title:string,description:string){return {meta:[{title:`${title} — KINETIC`},{name:'description',content:description},{property:'og:title',content:`${title} — KINETIC`},{property:'og:description',content:description},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]};}
-export function TacticalShell({title,index,children,actions}:{title:string;index:string;children:ReactNode;actions?:ReactNode}){const {user,signIn}=useAccount();const status=useBackendStatus();return <main className="kinetic-page tactical-page"><KineticNavigation/><div className="tactical-inner"><div className="tactical-heading"><div><span className="section-index">KINETIC // {index}</span><h1>{title}</h1></div><div className="tactical-actions">{actions}<Button variant="outline" onClick={()=>user?void supabase.auth.signOut():signIn()}>{user?<LogOut/>:<LogIn/>}{user?'Sign out':'Sign in'}</Button></div></div>{children}<footer className="training-footer"><span>KINETIC OS V2.4</span><span className="api-status" data-api-state={status.state} role="status" title={`KINETIC Flask API — ${status.apiUrl}`}>{formatBackendStatus(status)}</span><span><ShieldCheck size={12}/> ENCRYPTED / FIGHTER-OWNED DATA</span></footer></div></main>;}
-export function Instrument({title,tag,children,className=''}:{title:string;tag?:string;children:ReactNode;className?:string}){return <section className={`instrument ${className}`}><div className="instrument-heading"><h2>{title}</h2>{tag&&<span className="micro-label">{tag}</span>}</div>{children}</section>;}
+import type { ReactNode } from "react";
+import { LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { KineticNavigation } from "@/components/kinetic-navigation";
+import { Button } from "@/components/ui/button";
+import { useAccount } from "./kinetic-account";
+import { supabase } from "@/integrations/supabase/client";
+import { useBackendStatus, formatBackendStatus } from "@/hooks/use-backend-status";
+export function tacticalHead(title: string, description: string) {
+  return {
+    meta: [
+      { title: `${title} — KINETIC` },
+      { name: "description", content: description },
+      { property: "og:title", content: `${title} — KINETIC` },
+      { property: "og:description", content: description },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  };
+}
+export function TacticalShell({
+  title,
+  index,
+  children,
+  actions,
+}: {
+  title: string;
+  index: string;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  const { user, signIn } = useAccount();
+  const status = useBackendStatus();
+  return (
+    <main className="kinetic-page tactical-page">
+      <KineticNavigation />
+      <div className="tactical-inner">
+        <div className="tactical-heading">
+          <div>
+            <span className="section-index">KINETIC // {index}</span>
+            <h1>{title}</h1>
+          </div>
+          <div className="tactical-actions">
+            {actions}
+            <Button
+              variant="outline"
+              onClick={() => (user ? void supabase.auth.signOut() : signIn())}
+            >
+              {user ? <LogOut /> : <LogIn />}
+              {user ? "Sign out" : "Sign in"}
+            </Button>
+          </div>
+        </div>
+        {children}
+        <footer className="training-footer">
+          <span>KINETIC OS V2.4</span>
+          <span
+            className="api-status"
+            data-api-state={status.state}
+            role="status"
+            title={`KINETIC Flask API — ${status.apiUrl}`}
+          >
+            {formatBackendStatus(status)}
+          </span>
+          <span>
+            <ShieldCheck size={12} /> ENCRYPTED / FIGHTER-OWNED DATA
+          </span>
+        </footer>
+      </div>
+    </main>
+  );
+}
+export function Instrument({
+  title,
+  tag,
+  children,
+  className = "",
+}: {
+  title: string;
+  tag?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`instrument ${className}`}>
+      <div className="instrument-heading">
+        <h2>{title}</h2>
+        {tag && <span className="micro-label">{tag}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}

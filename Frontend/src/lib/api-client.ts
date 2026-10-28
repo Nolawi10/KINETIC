@@ -1,8 +1,10 @@
-const configuredApiUrl: string | undefined = import.meta.env['VITE_API_URL'];
-const DEFAULT_LOCAL_API = 'http://localhost:5000';
-const normalizedApiUrl = configuredApiUrl?.replace(/\/+$/, '');
+const configuredApiUrl: string | undefined = import.meta.env["VITE_API_URL"];
+const DEFAULT_LOCAL_API = "http://localhost:5000";
+const normalizedApiUrl = configuredApiUrl?.replace(/\/+$/, "");
 const targetsLocalFlask =
-  !normalizedApiUrl || normalizedApiUrl === DEFAULT_LOCAL_API || normalizedApiUrl === 'http://127.0.0.1:5000';
+  !normalizedApiUrl ||
+  normalizedApiUrl === DEFAULT_LOCAL_API ||
+  normalizedApiUrl === "http://127.0.0.1:5000";
 
 /**
  * In the browser during dev we talk to Vite on the same origin, and Vite proxies
@@ -11,8 +13,8 @@ const targetsLocalFlask =
  * respected; SSR and production builds talk to Flask directly.
  */
 export const API_URL: string =
-  targetsLocalFlask && import.meta.env.DEV && typeof window !== 'undefined'
-    ? ''
+  targetsLocalFlask && import.meta.env.DEV && typeof window !== "undefined"
+    ? ""
     : normalizedApiUrl || DEFAULT_LOCAL_API;
 
 /** Human-readable backend address for tooltips/debugging (never the proxy path). */
@@ -75,10 +77,10 @@ const MODELS_TTL_MS = 60_000;
 
 function isErrorPayload(value: unknown): value is { error: string } {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'error' in value &&
-    typeof (value as { error?: unknown }).error === 'string'
+    "error" in value &&
+    typeof (value as { error?: unknown }).error === "string"
   );
 }
 
@@ -89,7 +91,7 @@ export class ApiClient {
   private modelsCache: { data: ModelsResponse; expiresAt: number } | null = null;
 
   constructor(baseUrl: string = API_URL) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
   }
 
   private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -101,7 +103,7 @@ export class ApiClient {
     const abortFromOuter = () => controller.abort();
     if (outerSignal) {
       if (outerSignal.aborted) controller.abort();
-      else outerSignal.addEventListener('abort', abortFromOuter, { once: true });
+      else outerSignal.addEventListener("abort", abortFromOuter, { once: true });
     }
 
     const timer = globalThis.setTimeout(() => {
@@ -113,22 +115,22 @@ export class ApiClient {
     // body. Sending `application/json` on a GET turns a simple request into a
     // preflighted one, doubling every health poll.
     const headers = new Headers(init.headers);
-    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-    if (init.body !== undefined && init.body !== null && !headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json');
+    if (!headers.has("Accept")) headers.set("Accept", "application/json");
+    if (init.body !== undefined && init.body !== null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
     }
 
     // Defensively collapse any accidental `/api/api/...` from cached bundles/HMR.
-    let normalizedEndpoint = endpoint.replace(/^(\/api)+\//i, '/api/');
-    if (this.baseUrl.endsWith('/api') && normalizedEndpoint.startsWith('/api/')) {
-      normalizedEndpoint = normalizedEndpoint.slice(4) || '/';
+    let normalizedEndpoint = endpoint.replace(/^(\/api)+\//i, "/api/");
+    if (this.baseUrl.endsWith("/api") && normalizedEndpoint.startsWith("/api/")) {
+      normalizedEndpoint = normalizedEndpoint.slice(4) || "/";
     }
 
     try {
       const response = await fetch(`${this.baseUrl}${normalizedEndpoint}`, {
         ...init,
         headers,
-        cache: init.cache ?? 'no-store',
+        cache: init.cache ?? "no-store",
         signal: controller.signal,
       });
 
@@ -149,21 +151,21 @@ export class ApiClient {
       }
 
       if (!text) return undefined as T;
-      if (payload === null) throw new Error('API returned an invalid JSON response');
+      if (payload === null) throw new Error("API returned an invalid JSON response");
       return payload as T;
     } catch (error) {
       if (timedOut) throw new Error(`KINETIC API timed out after ${timeoutMs} ms`);
       throw error;
     } finally {
       globalThis.clearTimeout(timer);
-      outerSignal?.removeEventListener('abort', abortFromOuter);
+      outerSignal?.removeEventListener("abort", abortFromOuter);
     }
   }
 
   async healthCheck(): Promise<HealthResponse> {
     // Deduplicate polls: a page can mount several status consumers at once.
     if (!this.healthInFlight) {
-      this.healthInFlight = this.request<HealthResponse>('/api/health', {
+      this.healthInFlight = this.request<HealthResponse>("/api/health", {
         timeoutMs: PROBE_TIMEOUT_MS,
       }).finally(() => {
         this.healthInFlight = null;
@@ -178,7 +180,7 @@ export class ApiClient {
       return this.modelsCache.data;
     }
     if (!this.modelsInFlight) {
-      this.modelsInFlight = this.request<ModelsResponse>('/api/models', {
+      this.modelsInFlight = this.request<ModelsResponse>("/api/models", {
         timeoutMs: PROBE_TIMEOUT_MS,
       })
         .then((data) => {
@@ -193,8 +195,8 @@ export class ApiClient {
   }
 
   async predict(data: PredictionRequest): Promise<PredictionResponse> {
-    return this.request('/api/predict', {
-      method: 'POST',
+    return this.request("/api/predict", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -204,19 +206,19 @@ export class ApiClient {
     discipline?: string;
   }): Promise<{ sessions: TrainingSession[]; count: number }> {
     const queryParams = new URLSearchParams();
-    if (params?.range) queryParams.append('range', params.range);
-    if (params?.discipline) queryParams.append('discipline', params.discipline);
+    if (params?.range) queryParams.append("range", params.range);
+    if (params?.discipline) queryParams.append("discipline", params.discipline);
 
-    const endpoint = `/api/training-sessions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const endpoint = `/api/training-sessions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
     return this.request(endpoint);
   }
 
-  async saveTrainingSession(data: Omit<TrainingSession, 'id' | 'created_at'>): Promise<{
+  async saveTrainingSession(data: Omit<TrainingSession, "id" | "created_at">): Promise<{
     message: string;
     session: TrainingSession;
   }> {
-    return this.request('/api/training-sessions', {
-      method: 'POST',
+    return this.request("/api/training-sessions", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -224,9 +226,9 @@ export class ApiClient {
   async analyzeSparring(data: {
     video_url?: string;
     frames?: Array<{ time: number; image: string }>;
-  }): Promise<any> {
-    return this.request('/api/analyze-sparring', {
-      method: 'POST',
+  }): Promise<{ analysis: string; insights: string[] }> {
+    return this.request("/api/analyze-sparring", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -235,17 +237,17 @@ export class ApiClient {
     timestamp: number;
     impact_zone?: string;
     force?: number;
-    imu_data?: any;
-    pose_data?: any;
+    imu_data?: Record<string, unknown>;
+    pose_data?: Record<string, unknown>;
   }): Promise<{ status: string; timestamp: string }> {
-    return this.request('/api/telemetry', {
-      method: 'POST',
+    return this.request("/api/telemetry", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async getCoachingPresets(): Promise<{ presets: CoachingPreset[] }> {
-    return this.request('/api/coaching-presets');
+    return this.request("/api/coaching-presets");
   }
 
   /** Drop cached responses (used by tests and manual refresh). */

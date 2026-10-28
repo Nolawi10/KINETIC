@@ -1,19 +1,129 @@
-export const modeFilters = ['All Modes', 'Defensive', 'Offensive', 'Biomechanics'] as const;
+export const modeFilters = ["All Modes", "Defensive", "Offensive", "Biomechanics"] as const;
 export const coachingPresets = [
-  { id: 'guard', title: 'Guard Discipline & Defense Drill', category: 'Defensive', tag: 'Form & Rules', tone: 'cyan', focus: 'Defensive form & anti-foul monitoring', description: 'Build a reliable guard through disciplined returns and defensive form checks.', parameters: ['Max Guard Drop Tolerance: 1.5s', 'Penalty Threshold: Strict', 'Round Length: 3:00 min'], feature: 'Visual and audio warnings when hands drop below shoulder level.', roundSeconds: 180, guardTolerance: 1.5, penalty: 'Strict', discipline: 'Boxing' },
-  { id: 'combo', title: 'Combo Velocity & Debounce Challenge', category: 'Offensive', tag: 'Speed & Volume', tone: 'emerald', focus: 'High-speed strike sequences & hand speed', description: 'Link clean combinations with fast hand speed and distinct strike detection.', parameters: ['Target Combo: 5-Strike Minimum', 'Debounce Window: 0.35s', 'Target Output: 120 Strikes/Round'], feature: 'Real-time streak multipliers and high-velocity strike logging.', roundSeconds: 180, minimumCombo: 5, debounceSeconds: 0.35, targetStrikes: 120, discipline: 'MMA' },
-  { id: 'stance', title: 'Biomechanical Stance & Kick Precision', category: 'Biomechanics', tag: 'Postural Telemetry', tone: 'violet', focus: 'Lower-body joint angles & knee flexion', description: 'Refine the kick arc, hip rotation and a stable base through every recovery.', parameters: ['Target Knee Extension: 155°–170°', 'Hip Rotation Check: Active', 'Stance Stability Index: Active'], feature: 'Live angle overlays on knee and hip joints.', roundSeconds: 180, kneeMin: 155, kneeMax: 170, hipCheck: true, discipline: 'Muay Thai' },
-  { id: 'sparring', title: 'African Combat & Grassroots Free-Sparring', category: 'Offensive', tag: 'Open Sparring', tone: 'amber', focus: 'Local gym rigs · wrestling & striking drills', description: 'An adaptable open format for grassroots gyms, dummy rigs and mixed combat drills.', parameters: ['Full Telemetry Active', 'Multi-Foul Tracking', 'Automated Round Interval Timer'], feature: 'All-in-one background logging without rest-time interruptions.', roundSeconds: 180, fullTelemetry: true, multiFoul: true, uninterruptedLogging: true, discipline: 'MMA' },
+  {
+    id: "guard",
+    title: "Guard Discipline & Defense Drill",
+    category: "Defensive",
+    tag: "Form & Rules",
+    tone: "cyan",
+    focus: "Defensive form & anti-foul monitoring",
+    description: "Build a reliable guard through disciplined returns and defensive form checks.",
+    parameters: [
+      "Max Guard Drop Tolerance: 1.5s",
+      "Penalty Threshold: Strict",
+      "Round Length: 3:00 min",
+    ],
+    feature: "Visual and audio warnings when hands drop below shoulder level.",
+    roundSeconds: 180,
+    guardTolerance: 1.5,
+    penalty: "Strict",
+    discipline: "Boxing",
+  },
+  {
+    id: "combo",
+    title: "Combo Velocity & Debounce Challenge",
+    category: "Offensive",
+    tag: "Speed & Volume",
+    tone: "emerald",
+    focus: "High-speed strike sequences & hand speed",
+    description: "Link clean combinations with fast hand speed and distinct strike detection.",
+    parameters: [
+      "Target Combo: 5-Strike Minimum",
+      "Debounce Window: 0.35s",
+      "Target Output: 120 Strikes/Round",
+    ],
+    feature: "Real-time streak multipliers and high-velocity strike logging.",
+    roundSeconds: 180,
+    minimumCombo: 5,
+    debounceSeconds: 0.35,
+    targetStrikes: 120,
+    discipline: "MMA",
+  },
+  {
+    id: "stance",
+    title: "Biomechanical Stance & Kick Precision",
+    category: "Biomechanics",
+    tag: "Postural Telemetry",
+    tone: "violet",
+    focus: "Lower-body joint angles & knee flexion",
+    description: "Refine the kick arc, hip rotation and a stable base through every recovery.",
+    parameters: [
+      "Target Knee Extension: 155°–170°",
+      "Hip Rotation Check: Active",
+      "Stance Stability Index: Active",
+    ],
+    feature: "Live angle overlays on knee and hip joints.",
+    roundSeconds: 180,
+    kneeMin: 155,
+    kneeMax: 170,
+    hipCheck: true,
+    discipline: "Muay Thai",
+  },
+  {
+    id: "sparring",
+    title: "African Combat & Grassroots Free-Sparring",
+    category: "Offensive",
+    tag: "Open Sparring",
+    tone: "amber",
+    focus: "Local gym rigs · wrestling & striking drills",
+    description:
+      "An adaptable open format for grassroots gyms, dummy rigs and mixed combat drills.",
+    parameters: ["Full Telemetry Active", "Multi-Foul Tracking", "Automated Round Interval Timer"],
+    feature: "All-in-one background logging without rest-time interruptions.",
+    roundSeconds: 180,
+    fullTelemetry: true,
+    multiFoul: true,
+    uninterruptedLogging: true,
+    discipline: "MMA",
+  },
 ] as const;
-export type PresetId = typeof coachingPresets[number]['id'];
-export function getPreset(id: unknown) { return coachingPresets.find(p => p.id === id); }
-export function filterPresets(category: string) { return coachingPresets.filter(p => category === 'All Modes' || p.category === category); }
+export type PresetId = (typeof coachingPresets)[number]["id"];
+export function getPreset(id: unknown) {
+  return coachingPresets.find((p) => p.id === id);
+}
+export function filterPresets(category: string) {
+  return coachingPresets.filter((p) => category === "All Modes" || p.category === category);
+}
 export const foulHistory = [
-  { time: '01:42', mode: 'Guard Drill', type: 'Left Hand Dropped Below Shoulder', severity: 'CRITICAL', tip: 'Keep left glove at chin level during jab retract.' },
-  { time: '02:18', mode: 'Open Sparring', type: 'Improper Knee Extension Angle (120°)', severity: 'MODERATE', tip: 'Extend right leg fully through kick arc.' },
-  { time: '02:46', mode: 'Guard Drill', type: 'Right Hand Dropped on Combo Exit', severity: 'MODERATE', tip: 'Return the rear glove to your cheek before stepping out.' },
+  {
+    time: "01:42",
+    mode: "Guard Drill",
+    type: "Left Hand Dropped Below Shoulder",
+    severity: "CRITICAL",
+    tip: "Keep left glove at chin level during jab retract.",
+  },
+  {
+    time: "02:18",
+    mode: "Open Sparring",
+    type: "Improper Knee Extension Angle (120°)",
+    severity: "MODERATE",
+    tip: "Extend right leg fully through kick arc.",
+  },
+  {
+    time: "02:46",
+    mode: "Guard Drill",
+    type: "Right Hand Dropped on Combo Exit",
+    severity: "MODERATE",
+    tip: "Return the rear glove to your cheek before stepping out.",
+  },
 ] as const;
-export const roundCurve = Array.from({ length: 13 }, (_, i) => ({ time: `${Math.floor(i * 15 / 60)}:${String(i * 15 % 60).padStart(2, '0')}`, volume: [120,128,132,124,118,112,107,102,98,91,86,79,72][i] ?? 0, degradation: [2,3,3,5,7,9,12,14,17,20,23,27,31][i] ?? 0 }));
-export const comboDistribution = [{ name: '1–2 Jabs', count: 68 }, { name: '3-Strike', count: 42 }, { name: '5+ Extended', count: 16 }];
-export const formIntegrity = [{ name: 'Head Movement', score: 88 }, { name: 'Guard Height', score: 91.4 }, { name: 'Kick Mechanics', score: 82 }, { name: 'Stance Balance', score: 94 }];
-export function csvCell(value: unknown) { const text = String(value); return `"${/^[=+\-@]/.test(text) ? "'" : ''}${text.replaceAll('"', '""')}"`; }
+export const roundCurve = Array.from({ length: 13 }, (_, i) => ({
+  time: `${Math.floor((i * 15) / 60)}:${String((i * 15) % 60).padStart(2, "0")}`,
+  volume: [120, 128, 132, 124, 118, 112, 107, 102, 98, 91, 86, 79, 72][i] ?? 0,
+  degradation: [2, 3, 3, 5, 7, 9, 12, 14, 17, 20, 23, 27, 31][i] ?? 0,
+}));
+export const comboDistribution = [
+  { name: "1–2 Jabs", count: 68 },
+  { name: "3-Strike", count: 42 },
+  { name: "5+ Extended", count: 16 },
+];
+export const formIntegrity = [
+  { name: "Head Movement", score: 88 },
+  { name: "Guard Height", score: 91.4 },
+  { name: "Kick Mechanics", score: 82 },
+  { name: "Stance Balance", score: 94 },
+];
+export function csvCell(value: unknown) {
+  const text = String(value);
+  return `"${/^[=+\-@]/.test(text) ? "'" : ""}${text.replaceAll('"', '""')}"`;
+}

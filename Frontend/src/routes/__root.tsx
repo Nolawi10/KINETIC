@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { KineticAccountProvider } from '@/components/kinetic-account';
+import { KineticAccountProvider } from "@/components/kinetic-account";
 
 function NotFoundComponent() {
   return (
@@ -87,7 +87,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -121,7 +124,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <KineticAccountProvider><Outlet /></KineticAccountProvider>
+      <KineticAccountProvider>
+        <Outlet />
+      </KineticAccountProvider>
     </QueryClientProvider>
   );
 }

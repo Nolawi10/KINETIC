@@ -1,7 +1,7 @@
-import { useSyncExternalStore } from 'react';
-import { apiClient, API_DISPLAY_URL, type HealthResponse } from '@/lib/api-client';
+import { useSyncExternalStore } from "react";
+import { apiClient, API_DISPLAY_URL, type HealthResponse } from "@/lib/api-client";
 
-export type BackendState = 'checking' | 'online' | 'offline';
+export type BackendState = "checking" | "online" | "offline";
 
 export interface BackendStatus {
   /** Reachability of the Flask API (`/api/health`). */
@@ -18,21 +18,24 @@ interface BackendSnapshot {
 }
 
 /** Pure label formatter so footer copy is testable without rendering. */
-export function formatBackendStatus({ state, models }: Pick<BackendStatus, 'state' | 'models'>): string {
-  if (state === 'checking') return 'API: CONNECTING…';
-  if (state === 'offline') return 'API: OFFLINE';
-  return `API: ONLINE · ${models} MODEL${models === 1 ? '' : 'S'}`;
+export function formatBackendStatus({
+  state,
+  models,
+}: Pick<BackendStatus, "state" | "models">): string {
+  if (state === "checking") return "API: CONNECTING…";
+  if (state === "offline") return "API: OFFLINE";
+  return `API: ONLINE · ${models} MODEL${models === 1 ? "" : "S"}`;
 }
 
 /** Landing-page wording ("STATUS: …"), kept separate from the footer chip. */
 export function formatLandingStatus(state: BackendState): string {
-  if (state === 'checking') return 'STATUS: CONNECTING…';
-  if (state === 'offline') return 'STATUS: API OFFLINE';
-  return 'STATUS: API ONLINE';
+  if (state === "checking") return "STATUS: CONNECTING…";
+  if (state === "offline") return "STATUS: API OFFLINE";
+  return "STATUS: API ONLINE";
 }
 
 const POLL_INTERVAL_MS = 20_000;
-const INITIAL_SNAPSHOT: BackendSnapshot = { state: 'checking', models: 0 };
+const INITIAL_SNAPSHOT: BackendSnapshot = { state: "checking", models: 0 };
 
 /**
  * One module-level poller shared by every screen. The previous version created
@@ -61,7 +64,7 @@ function emit(next: BackendSnapshot): void {
 }
 
 async function modelCount(health: HealthResponse): Promise<number> {
-  if (typeof health.models === 'number') return health.models;
+  if (typeof health.models === "number") return health.models;
   try {
     return (await apiClient.listModels()).count;
   } catch {
@@ -77,9 +80,9 @@ async function refresh(force = false): Promise<void> {
   lastRefreshAt = Date.now();
   try {
     const health = await apiClient.healthCheck();
-    emit({ state: 'online', models: await modelCount(health) });
+    emit({ state: "online", models: await modelCount(health) });
   } catch {
-    emit({ state: 'offline', models: 0 });
+    emit({ state: "offline", models: 0 });
   } finally {
     refreshing = false;
   }
@@ -110,9 +113,9 @@ function handleVisibilityChange(): void {
 }
 
 function start(): void {
-  if (started || typeof window === 'undefined') return;
+  if (started || typeof window === "undefined") return;
   started = true;
-  document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
   void refresh();
   startTimer();
 }
@@ -121,7 +124,7 @@ function stop(): void {
   if (!started) return;
   started = false;
   stopTimer();
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 }
 
 function subscribe(listener: () => void): () => void {

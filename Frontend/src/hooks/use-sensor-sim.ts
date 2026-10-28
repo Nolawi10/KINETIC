@@ -1,6 +1,6 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { sensorSimStore } from '@/lib/sensor-sim/store';
-import type { SensorSimState } from '@/lib/sensor-sim/types';
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
+import type { SensorSimState } from "@/lib/sensor-sim/types";
 
 /** Subscribe to the shared mat/dummy event store. */
 export function useSensorSim(): SensorSimState {

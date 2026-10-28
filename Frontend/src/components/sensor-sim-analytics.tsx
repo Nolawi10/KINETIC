@@ -1,13 +1,5 @@
-import {
-  Activity,
-  Clock,
-  Gauge,
-  Radar,
-  Target,
-  Timer,
-  Zap,
-} from 'lucide-react';
-import { Link } from '@tanstack/react-router';
+import { Activity, Clock, Gauge, Radar, Target, Timer, Zap } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import {
   Bar,
   BarChart,
@@ -21,11 +13,11 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
-import { Instrument } from '@/components/tactical-shell';
-import { Button } from '@/components/ui/button';
-import { useNow, useSensorSim } from '@/hooks/use-sensor-sim';
-import { sensorSimStore } from '@/lib/sensor-sim/store';
+} from "recharts";
+import { Instrument } from "@/components/tactical-shell";
+import { Button } from "@/components/ui/button";
+import { useNow, useSensorSim } from "@/hooks/use-sensor-sim";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
 import {
   bucketActivity,
   countersForFilter,
@@ -34,19 +26,19 @@ import {
   formatSessionDuration,
   groupDummyCombos,
   summarizeSession,
-} from '@/lib/sensor-sim/engine';
+} from "@/lib/sensor-sim/engine";
 import {
   DUMMY_ZONES,
   INTENSITY_LABELS,
   INTENSITY_LEVELS,
   MAT_SENSORS,
   type SourceFilter,
-} from '@/lib/sensor-sim/types';
+} from "@/lib/sensor-sim/types";
 
 const FILTERS: readonly { id: SourceFilter; label: string }[] = [
-  { id: 'ALL', label: 'All sources' },
-  { id: 'SIMULATED', label: 'Simulated' },
-  { id: 'HARDWARE', label: 'Hardware' },
+  { id: "ALL", label: "All sources" },
+  { id: "SIMULATED", label: "Simulated" },
+  { id: "HARDWARE", label: "Hardware" },
 ];
 
 /**
@@ -70,7 +62,7 @@ export function SensorSimAnalytics() {
   const visibleEvents = filterEvents(state.events, state.sourceFilter);
 
   const sourceLabel =
-    state.sourceFilter === 'ALL'
+    state.sourceFilter === "ALL"
       ? `${state.counters.simulated.total} SIMULATED · ${state.counters.hardware.total} HARDWARE`
       : state.sourceFilter;
 
@@ -114,7 +106,9 @@ export function SensorSimAnalytics() {
               Simulate Footwork / Simulate Combo. Charts here update from the same event store.
             </p>
             <Button asChild variant="outline">
-              <Link to="/live" search={{ preset: undefined }}>Open Live Session</Link>
+              <Link to="/live" search={{ preset: undefined }}>
+                Open Live Session
+              </Link>
             </Button>
             <p className="micro-label">
               Demo mode works offline — the physical sensors and ESP8266 nodes are not required.
@@ -143,59 +137,57 @@ export function SensorSimAnalytics() {
     dummy: counters.byIntensityByDevice.DUMMY[level],
   }));
   const combos = groupDummyCombos(visibleEvents, 1500).slice(-4).reverse();
-  const recentStrikes = visibleEvents
-    .filter((event) => event.device === 'DUMMY')
-    .slice(0, 8);
+  const recentStrikes = visibleEvents.filter((event) => event.device === "DUMMY").slice(0, 8);
 
   const kpis = [
     {
-      label: 'TOTAL MAT CONTACTS',
+      label: "TOTAL MAT CONTACTS",
       value: counters.mat.toLocaleString(),
-      detail: `${summary.mostActiveSensor ?? '—'} most active`,
+      detail: `${summary.mostActiveSensor ?? "—"} most active`,
       icon: Activity,
     },
     {
-      label: 'TOTAL DUMMY HITS',
+      label: "TOTAL DUMMY HITS",
       value: counters.dummy.toLocaleString(),
-      detail: `${summary.mostActiveZone?.replace('_', ' ') ?? '—'} top zone`,
+      detail: `${summary.mostActiveZone?.replace("_", " ") ?? "—"} top zone`,
       icon: Target,
     },
     {
-      label: 'TOTAL EVENTS',
+      label: "TOTAL EVENTS",
       value: counters.total.toLocaleString(),
-      detail: 'Mat + dummy · current session',
+      detail: "Mat + dummy · current session",
       icon: Zap,
     },
     {
-      label: 'SESSION DURATION',
+      label: "SESSION DURATION",
       value: formatSessionDuration(summary.durationMs),
       detail: `${summary.total} events recorded`,
       icon: Clock,
     },
     {
-      label: 'EVENT RATE',
+      label: "EVENT RATE",
       value: `${summary.eventsPerMinute} / min`,
-      detail: 'Trailing 60 s window',
+      detail: "Trailing 60 s window",
       icon: Timer,
     },
     {
-      label: 'MOST ACTIVE SENSOR',
-      value: summary.mostActiveSensor ?? '—',
+      label: "MOST ACTIVE SENSOR",
+      value: summary.mostActiveSensor ?? "—",
       detail: summary.mostActiveSensor
         ? `${counters.bySensor[summary.mostActiveSensor]} contacts`
-        : 'No mat contacts yet',
+        : "No mat contacts yet",
       icon: Gauge,
     },
     {
-      label: 'TOP DUMMY ZONE',
-      value: summary.mostActiveZone?.replace('_', ' ') ?? '—',
+      label: "TOP DUMMY ZONE",
+      value: summary.mostActiveZone?.replace("_", " ") ?? "—",
       detail: summary.mostActiveZone
         ? `${counters.byZone[summary.mostActiveZone]} hits`
-        : 'No dummy hits yet',
+        : "No dummy hits yet",
       icon: Target,
     },
     {
-      label: 'SOURCE STATUS',
+      label: "SOURCE STATUS",
       value: state.sourceFilter,
       detail: `${state.counters.simulated.total} simulated · ${state.counters.hardware.total} hardware`,
       icon: Radar,
@@ -237,7 +229,12 @@ export function SensorSimAnalytics() {
                   width={28}
                 />
                 <Tooltip />
-                <Bar dataKey="contacts" name="Contacts" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
+                <Bar
+                  dataKey="contacts"
+                  name="Contacts"
+                  fill="var(--chart-1)"
+                  radius={[3, 3, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -399,7 +396,7 @@ export function SensorSimAnalytics() {
                   <div>
                     {combo.zones.map((zone, zoneIndex) => (
                       <span key={`${zone}-${zoneIndex}`} className="sim-combo-zone">
-                        {zone.replace('_', ' ')}
+                        {zone.replace("_", " ")}
                       </span>
                     ))}
                   </div>
@@ -422,9 +419,11 @@ export function SensorSimAnalytics() {
           <table className="session-table">
             <thead>
               <tr>
-                {['TIME', 'ZONE', 'PEAK (ADC)', 'DURATION', 'INTENSITY', 'SOURCE'].map((heading) => (
-                  <th key={heading}>{heading}</th>
-                ))}
+                {["TIME", "ZONE", "PEAK (ADC)", "DURATION", "INTENSITY", "SOURCE"].map(
+                  (heading) => (
+                    <th key={heading}>{heading}</th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -434,7 +433,7 @@ export function SensorSimAnalytics() {
                     {formatClock(event.ts)}
                     <small>DUMMY IMPACT</small>
                   </td>
-                  <td className="accent-cyan">{event.sensorId.replace('_', ' ')}</td>
+                  <td className="accent-cyan">{event.sensorId.replace("_", " ")}</td>
                   <td>{Math.round(event.peakAmplitude)}</td>
                   <td>{event.durationMs} ms</td>
                   <td>{INTENSITY_LABELS[event.intensity]}</td>
@@ -462,11 +461,30 @@ export function SensorSimAnalytics() {
   );
 }
 
-      <Instrument title="HIT ZONES" tag="DUMMY/MAT">
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'8px',textAlign:'center'}}>
-          <div><div className="micro-label">HEAD</div><strong>-</strong></div>
-          <div><div className="micro-label">CHEST</div><strong>-</strong></div>
-          <div><div className="micro-label">LEFT_WAIST</div><strong>-</strong></div>
-          <div><div className="micro-label">RIGHT_WAIST</div><strong>-</strong></div>
-        </div>
-      </Instrument>
+<Instrument title="HIT ZONES" tag="DUMMY/MAT">
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr 1fr",
+      gap: "8px",
+      textAlign: "center",
+    }}
+  >
+    <div>
+      <div className="micro-label">HEAD</div>
+      <strong>-</strong>
+    </div>
+    <div>
+      <div className="micro-label">CHEST</div>
+      <strong>-</strong>
+    </div>
+    <div>
+      <div className="micro-label">LEFT_WAIST</div>
+      <strong>-</strong>
+    </div>
+    <div>
+      <div className="micro-label">RIGHT_WAIST</div>
+      <strong>-</strong>
+    </div>
+  </div>
+</Instrument>;

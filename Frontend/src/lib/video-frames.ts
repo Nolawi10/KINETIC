@@ -1,1 +1,36 @@
-export async function extractFrames(file:File){const video=document.createElement('video');const url=URL.createObjectURL(file);video.src=url;video.muted=true;video.preload='auto';try{await new Promise<void>((resolve,reject)=>{video.onloadedmetadata=()=>resolve();video.onerror=()=>reject(new Error('This video cannot be decoded. Try MP4 or WebM.'));});if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>3600)throw new Error('Choose a video between 1 second and 60 minutes.');const canvas=document.createElement('canvas');canvas.width=640;canvas.height=Math.round(640*video.videoHeight/video.videoWidth);const context=canvas.getContext('2d');if(!context)throw new Error('Video frame capture is unavailable.');const frames=[];for(let i=0;i<12;i++){const time=Math.min(video.duration-.05,video.duration*(i+.5)/12);await new Promise<void>((resolve,reject)=>{video.onseeked=()=>resolve();video.onerror=()=>reject(new Error('Unable to read the video frames.'));video.currentTime=time;});context.drawImage(video,0,0,canvas.width,canvas.height);frames.push({time:+time.toFixed(2),image:canvas.toDataURL('image/jpeg',.65)});}return {frames,duration:video.duration};}finally{URL.revokeObjectURL(url);video.removeAttribute('src');video.load();}}
+export async function extractFrames(file: File) {
+  const video = document.createElement("video");
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.muted = true;
+  video.preload = "auto";
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error("This video cannot be decoded. Try MP4 or WebM."));
+    });
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || video.duration > 3600)
+      throw new Error("Choose a video between 1 second and 60 minutes.");
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = Math.round((640 * video.videoHeight) / video.videoWidth);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Video frame capture is unavailable.");
+    const frames = [];
+    for (let i = 0; i < 12; i++) {
+      const time = Math.min(video.duration - 0.05, (video.duration * (i + 0.5)) / 12);
+      await new Promise<void>((resolve, reject) => {
+        video.onseeked = () => resolve();
+        video.onerror = () => reject(new Error("Unable to read the video frames."));
+        video.currentTime = time;
+      });
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push({ time: +time.toFixed(2), image: canvas.toDataURL("image/jpeg", 0.65) });
+    }
+    return { frames, duration: video.duration };
+  } finally {
+    URL.revokeObjectURL(url);
+    video.removeAttribute("src");
+    video.load();
+  }
+}

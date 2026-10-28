@@ -45,7 +45,16 @@ export default defineConfig({
     optimizeDeps: {
       // Prebundle interactive UI dependencies with React at startup rather than
       // discovering them during HMR, which can mix React module generations.
-      include: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "@radix-ui/react-select", "@radix-ui/react-slider", "@radix-ui/react-switch", "framer-motion", "lucide-react", "recharts"],
+      include: [
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-slot",
+        "@radix-ui/react-select",
+        "@radix-ui/react-slider",
+        "@radix-ui/react-switch",
+        "framer-motion",
+        "lucide-react",
+        "recharts",
+      ],
     },
   },
   tanstackStart: {

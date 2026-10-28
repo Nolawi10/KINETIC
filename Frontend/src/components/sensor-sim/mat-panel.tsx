@@ -1,23 +1,23 @@
-import { Footprints, Square } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useNow, useSensorSim } from '@/hooks/use-sensor-sim';
-import { countersForFilter, formatClock } from '@/lib/sensor-sim/engine';
-import { sensorSimStore } from '@/lib/sensor-sim/store';
+import { Footprints, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNow, useSensorSim } from "@/hooks/use-sensor-sim";
+import { countersForFilter, formatClock } from "@/lib/sensor-sim/engine";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
 import {
   INTENSITY_LABELS,
   INTENSITY_LEVELS,
   MAT_SENSORS,
   type MatSensorId,
-} from '@/lib/sensor-sim/types';
+} from "@/lib/sensor-sim/types";
 
-type SensorState = 'idle' | 'active' | 'cooldown';
+type SensorState = "idle" | "active" | "cooldown";
 
 function sensorState(lastTs: number | undefined, now: number): SensorState {
-  if (!lastTs || now <= 0) return 'idle';
+  if (!lastTs || now <= 0) return "idle";
   const age = now - lastTs;
-  if (age < 450) return 'active';
-  if (age < 1400) return 'cooldown';
-  return 'idle';
+  if (age < 450) return "active";
+  if (age < 1400) return "cooldown";
+  return "idle";
 }
 
 /** Panel A — six-piezo smart mat with manual contacts and footwork playback. */
@@ -25,9 +25,9 @@ export function MatSimulatorPanel() {
   const state = useSensorSim();
   const now = useNow(250);
   const counters = countersForFilter(state.counters, state.sourceFilter);
-  const sequence = state.sequence?.kind === 'footwork' ? state.sequence : null;
+  const sequence = state.sequence?.kind === "footwork" ? state.sequence : null;
 
-  const matEvents = state.events.filter((event) => event.device === 'MAT');
+  const matEvents = state.events.filter((event) => event.device === "MAT");
   const latest = matEvents[0];
   const multiContact =
     matEvents.length > 1 &&
@@ -45,7 +45,7 @@ export function MatSimulatorPanel() {
           <h3 id="mat-sim-title">SIX-PIEZO FOOTWORK GRID</h3>
         </div>
         <span className="state-badge" data-active={multiContact}>
-          {multiContact ? '● MULTI-SENSOR CONTACT' : '● LISTENING'}
+          {multiContact ? "● MULTI-SENSOR CONTACT" : "● LISTENING"}
         </span>
       </div>
 
@@ -58,7 +58,7 @@ export function MatSimulatorPanel() {
               className="sim-segment-btn"
               data-active={state.matIntensity === level}
               aria-pressed={state.matIntensity === level}
-              onClick={() => sensorSimStore.setIntensity('MAT', level)}
+              onClick={() => sensorSimStore.setIntensity("MAT", level)}
             >
               {INTENSITY_LABELS[level]}
             </button>
@@ -69,7 +69,7 @@ export function MatSimulatorPanel() {
             size="sm"
             variant="outline"
             onClick={() => sensorSimStore.simulateFootwork()}
-            disabled={state.mode !== 'SIMULATION'}
+            disabled={state.mode !== "SIMULATION"}
           >
             <Footprints /> Simulate Footwork
           </Button>
@@ -108,11 +108,11 @@ export function MatSimulatorPanel() {
                 <span className="mat-sensor-id">{sensor.id}</span>
                 <span className="mat-sensor-place">{sensor.placement}</span>
                 <span className="mat-sensor-value">
-                  {event ? Math.round(event.peakAmplitude) : '—'}
+                  {event ? Math.round(event.peakAmplitude) : "—"}
                   <small>ADC</small>
                 </span>
                 <span className="mat-sensor-time">
-                  {event ? formatClock(event.ts) : 'NO EVENT'}
+                  {event ? formatClock(event.ts) : "NO EVENT"}
                 </span>
                 <span className="mat-sensor-count">{count} hits</span>
               </button>
@@ -126,11 +126,11 @@ export function MatSimulatorPanel() {
           CONTACTS <strong>{counters.mat}</strong>
         </span>
         <span>
-          LAST EVENT <strong>{latest ? formatClock(latest.ts) : '—'}</strong>
+          LAST EVENT <strong>{latest ? formatClock(latest.ts) : "—"}</strong>
         </span>
         <span>
-          SEQUENCE{' '}
-          <strong>{sequence ? `${sequence.remaining}/${sequence.total} QUEUED` : 'IDLE'}</strong>
+          SEQUENCE{" "}
+          <strong>{sequence ? `${sequence.remaining}/${sequence.total} QUEUED` : "IDLE"}</strong>
         </span>
       </div>
 

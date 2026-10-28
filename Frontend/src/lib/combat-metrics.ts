@@ -1,4 +1,10 @@
-export const SPORT_MODES = ["ALL MMA", "MUAY THAI", "KICKBOXING", "BOXING", "BJJ & WRESTLING"] as const;
+export const SPORT_MODES = [
+  "ALL MMA",
+  "MUAY THAI",
+  "KICKBOXING",
+  "BOXING",
+  "BJJ & WRESTLING",
+] as const;
 export type SportMode = (typeof SPORT_MODES)[number];
 export type CombatMetric = { label: string; value: string; unit: string };
 export const COMBAT_METRICS: Record<SportMode, readonly CombatMetric[]> = {
@@ -12,12 +18,12 @@ export const COMBAT_METRICS: Record<SportMode, readonly CombatMetric[]> = {
     { label: "Knee Trajectory Angle", value: "135", unit: "°" },
     { label: "Clinch Balance", value: "94.2", unit: "%" },
   ],
-  "KICKBOXING": [
+  KICKBOXING: [
     { label: "Kick Impact Force", value: "2,960", unit: "N" },
     { label: "Guard Recovery Time", value: "240", unit: "MS" },
     { label: "Strike Velocity", value: "11.8", unit: "M/S" },
   ],
-  "BOXING": [
+  BOXING: [
     { label: "Slip Distance", value: "18.4", unit: "CM" },
     { label: "Head Movement Velocity", value: "2.8", unit: "M/S" },
     { label: "Punch Kinetic Force", value: "2,840", unit: "N" },

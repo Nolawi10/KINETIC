@@ -18,7 +18,7 @@ import {
   simulateMatContact,
   nextEventId,
   type Rng,
-} from './engine';
+} from "./engine";
 import {
   emptySessionCounters,
   type Device,
@@ -32,7 +32,7 @@ import {
   type SensorSimState,
   type SimMode,
   type SourceFilter,
-} from './types';
+} from "./types";
 
 export const DEFAULT_MAX_EVENTS = 400;
 /** Manual triggers on the same sensor are ignored inside this window. */
@@ -78,11 +78,11 @@ function initialState(now: number): SensorSimState {
     sessionStartedAt: null,
     lastEventAt: null,
     latestBySensor: {},
-    mode: 'SIMULATION',
+    mode: "SIMULATION",
     running: false,
-    matIntensity: 'medium',
-    dummyIntensity: 'medium',
-    sourceFilter: 'ALL',
+    matIntensity: "medium",
+    dummyIntensity: "medium",
+    sourceFilter: "ALL",
     sequence: null,
   };
 }
@@ -120,7 +120,7 @@ export class SensorSimStore {
   }
 
   setMode(mode: SimMode): void {
-    if (mode === 'HARDWARE') {
+    if (mode === "HARDWARE") {
       this.sequenceToken += 1;
       this.clearTimers();
       this.patch({ mode, running: false, sequence: null });
@@ -134,7 +134,7 @@ export class SensorSimStore {
   }
 
   setIntensity(device: Device, intensity: IntensityLevel): void {
-    if (device === 'MAT') this.patch({ matIntensity: intensity });
+    if (device === "MAT") this.patch({ matIntensity: intensity });
     else this.patch({ dummyIntensity: intensity });
   }
 
@@ -178,7 +178,7 @@ export class SensorSimStore {
 
   /** Multi-step footwork sequence with occasional two-sensor weight shifts. */
   simulateFootwork(): void {
-    if (this.state.mode !== 'SIMULATION') return;
+    if (this.state.mode !== "SIMULATION") return;
     this.sequenceToken += 1;
     const token = this.sequenceToken;
     this.clearTimers();
@@ -186,7 +186,7 @@ export class SensorSimStore {
     const sequence = planFootworkSequence(this.rng);
     this.patch({
       running: true,
-      sequence: { kind: 'footwork', remaining: sequence.length, total: sequence.length },
+      sequence: { kind: "footwork", remaining: sequence.length, total: sequence.length },
     });
 
     const step = (index: number) => {
@@ -204,7 +204,7 @@ export class SensorSimStore {
 
       const remaining = sequence.length - index - 1;
       this.patch({
-        sequence: remaining > 0 ? { kind: 'footwork', remaining, total: sequence.length } : null,
+        sequence: remaining > 0 ? { kind: "footwork", remaining, total: sequence.length } : null,
         running: remaining > 0,
       });
       if (remaining > 0) {
@@ -217,7 +217,7 @@ export class SensorSimStore {
 
   /** Multi-zone combination with plausible boxing transitions. */
   simulateCombo(): void {
-    if (this.state.mode !== 'SIMULATION') return;
+    if (this.state.mode !== "SIMULATION") return;
     this.sequenceToken += 1;
     const token = this.sequenceToken;
     this.clearTimers();
@@ -225,7 +225,7 @@ export class SensorSimStore {
     const sequence = planComboSequence(this.rng);
     this.patch({
       running: true,
-      sequence: { kind: 'combo', remaining: sequence.length, total: sequence.length },
+      sequence: { kind: "combo", remaining: sequence.length, total: sequence.length },
     });
 
     const step = (index: number) => {
@@ -239,7 +239,7 @@ export class SensorSimStore {
 
       const remaining = sequence.length - index - 1;
       this.patch({
-        sequence: remaining > 0 ? { kind: 'combo', remaining, total: sequence.length } : null,
+        sequence: remaining > 0 ? { kind: "combo", remaining, total: sequence.length } : null,
         running: remaining > 0,
       });
       if (remaining > 0) {
@@ -264,7 +264,7 @@ export class SensorSimStore {
     this.sequenceToken += 1;
     this.clearTimers();
 
-    const events = this.state.events.filter((event) => event.source === 'HARDWARE');
+    const events = this.state.events.filter((event) => event.source === "HARDWARE");
     const counters = countEvents(events);
     const latestBySensor: Partial<Record<SensorId, SensorEvent>> = {};
     for (const event of [...events].reverse()) latestBySensor[event.sensorId] = event;
@@ -297,12 +297,12 @@ export class SensorSimStore {
       ts,
       device: input.device,
       sensorId: input.sensorId,
-      eventType: input.eventType ?? (input.device === 'MAT' ? 'contact' : 'impact'),
+      eventType: input.eventType ?? (input.device === "MAT" ? "contact" : "impact"),
       peakAmplitude: input.peakAmplitude,
       durationMs: input.durationMs,
-      source: 'HARDWARE',
+      source: "HARDWARE",
       sessionId: input.sessionId ?? this.state.sessionId,
-      intensity: input.intensity ?? 'medium',
+      intensity: input.intensity ?? "medium",
       ...(input.imu ? { imu: input.imu } : {}),
     };
     this.pushEvent(event);
@@ -310,7 +310,7 @@ export class SensorSimStore {
   }
 
   private acceptTrigger(sensorId: SensorId, options: TriggerOptions): boolean {
-    if (this.state.mode !== 'SIMULATION') return false;
+    if (this.state.mode !== "SIMULATION") return false;
     if (options.manual === false) return true;
 
     const now = options.now ?? this.clock();

@@ -1,6 +1,6 @@
-import { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 
 /**
  * Procedural training dummy built from primitive shapes.
@@ -68,7 +68,13 @@ function DummyMesh() {
 /**
  * 3D Content component - separated to avoid loading in test environment
  */
-export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }: {
+export function Dummy3DContent({
+  zoom,
+  cameraRef,
+  onZoomIn,
+  onZoomOut,
+  onReset,
+}: {
   zoom: number;
   cameraRef: React.RefObject<THREE.PerspectiveCamera>;
   onZoomIn: () => void;
@@ -77,16 +83,8 @@ export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }
 }) {
   return (
     <>
-      <Canvas
-        style={{ width: '100%', height: '100%' }}
-        gl={{ antialias: true, alpha: true }}
-      >
-        <PerspectiveCamera
-          ref={cameraRef}
-          makeDefault
-          position={[0, 0, zoom]}
-          fov={50}
-        />
+      <Canvas style={{ width: "100%", height: "100%" }} gl={{ antialias: true, alpha: true }}>
+        <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 0, zoom]} fov={50} />
         <OrbitControls
           enablePan={false}
           enableZoom={false}
@@ -105,16 +103,16 @@ export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }
       <div
         className="dummy-3d-controls"
         style={{
-          position: 'absolute',
-          bottom: '12px',
-          right: '12px',
-          display: 'flex',
-          gap: '6px',
-          background: 'var(--glass)',
-          backdropFilter: 'blur(12px)',
-          padding: '6px',
-          borderRadius: '8px',
-          border: '1px solid var(--glass-edge)',
+          position: "absolute",
+          bottom: "12px",
+          right: "12px",
+          display: "flex",
+          gap: "6px",
+          background: "var(--glass)",
+          backdropFilter: "blur(12px)",
+          padding: "6px",
+          borderRadius: "8px",
+          border: "1px solid var(--glass-edge)",
         }}
       >
         <Button
@@ -122,7 +120,7 @@ export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }
           variant="outline"
           onClick={onZoomIn}
           title="Zoom In"
-          style={{ width: '32px', height: '32px' }}
+          style={{ width: "32px", height: "32px" }}
         >
           <Plus size={14} />
         </Button>
@@ -131,7 +129,7 @@ export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }
           variant="outline"
           onClick={onZoomOut}
           title="Zoom Out"
-          style={{ width: '32px', height: '32px' }}
+          style={{ width: "32px", height: "32px" }}
         >
           <Minus size={14} />
         </Button>
@@ -140,7 +138,7 @@ export function Dummy3DContent({ zoom, cameraRef, onZoomIn, onZoomOut, onReset }
           variant="outline"
           onClick={onReset}
           title="Reset View"
-          style={{ width: '32px', height: '32px' }}
+          style={{ width: "32px", height: "32px" }}
         >
           <RotateCcw size={14} />
         </Button>

@@ -6,16 +6,16 @@
  * it is the vocabulary shared by the simulator and the future receiver.
  */
 
-export type Device = 'MAT' | 'DUMMY';
-export type MatSensorId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6';
-export type DummyZoneId = 'HEAD' | 'CHEST' | 'LEFT_WAIST' | 'RIGHT_WAIST';
+export type Device = "MAT" | "DUMMY";
+export type MatSensorId = "M1" | "M2" | "M3" | "M4" | "M5" | "M6";
+export type DummyZoneId = "HEAD" | "CHEST" | "LEFT_WAIST" | "RIGHT_WAIST";
 export type SensorId = MatSensorId | DummyZoneId;
-export type EventType = 'contact' | 'impact';
-export type EventSource = 'SIMULATED' | 'HARDWARE';
-export type IntensityLevel = 'light' | 'medium' | 'strong';
-export type SimMode = 'SIMULATION' | 'HARDWARE';
-export type SourceFilter = 'ALL' | 'SIMULATED' | 'HARDWARE';
-export type SequenceKind = 'footwork' | 'combo';
+export type EventType = "contact" | "impact";
+export type EventSource = "SIMULATED" | "HARDWARE";
+export type IntensityLevel = "light" | "medium" | "strong";
+export type SimMode = "SIMULATION" | "HARDWARE";
+export type SourceFilter = "ALL" | "SIMULATED" | "HARDWARE";
+export type SequenceKind = "footwork" | "combo";
 
 /**
  * MPU6050-style motion sample attached to dummy impacts.
@@ -57,17 +57,18 @@ export interface MatSensorSpec {
   col: 0 | 1 | 2;
   row: 0 | 1;
   /** Human-readable placement, consistent across Live and Analytics. */
-  placement: 'FRONT LEFT' | 'FRONT CENTER' | 'FRONT RIGHT' | 'REAR LEFT' | 'REAR CENTER' | 'REAR RIGHT';
+  placement:
+    "FRONT LEFT" | "FRONT CENTER" | "FRONT RIGHT" | "REAR LEFT" | "REAR CENTER" | "REAR RIGHT";
 }
 
 /** 3 columns × 2 rows. Row 0 is the front line, row 1 the rear line. */
 export const MAT_SENSORS: readonly MatSensorSpec[] = [
-  { id: 'M1', col: 0, row: 0, placement: 'FRONT LEFT' },
-  { id: 'M2', col: 1, row: 0, placement: 'FRONT CENTER' },
-  { id: 'M3', col: 2, row: 0, placement: 'FRONT RIGHT' },
-  { id: 'M4', col: 0, row: 1, placement: 'REAR LEFT' },
-  { id: 'M5', col: 1, row: 1, placement: 'REAR CENTER' },
-  { id: 'M6', col: 2, row: 1, placement: 'REAR RIGHT' },
+  { id: "M1", col: 0, row: 0, placement: "FRONT LEFT" },
+  { id: "M2", col: 1, row: 0, placement: "FRONT CENTER" },
+  { id: "M3", col: 2, row: 0, placement: "FRONT RIGHT" },
+  { id: "M4", col: 0, row: 1, placement: "REAR LEFT" },
+  { id: "M5", col: 1, row: 1, placement: "REAR CENTER" },
+  { id: "M6", col: 2, row: 1, placement: "REAR RIGHT" },
 ] as const;
 
 export const MAT_SENSOR_IDS: readonly MatSensorId[] = MAT_SENSORS.map((s) => s.id);
@@ -82,20 +83,20 @@ export interface DummyZoneSpec {
 }
 
 export const DUMMY_ZONES: readonly DummyZoneSpec[] = [
-  { id: 'HEAD', label: 'HEAD', chart: 4, hint: 'MPU6050 mounted at crown' },
-  { id: 'CHEST', label: 'CHEST', chart: 1, hint: 'Sternum strike plate' },
-  { id: 'LEFT_WAIST', label: 'LEFT WAIST', chart: 3, hint: 'Viewer-left waist plate' },
-  { id: 'RIGHT_WAIST', label: 'RIGHT WAIST', chart: 2, hint: 'Viewer-right waist plate' },
+  { id: "HEAD", label: "HEAD", chart: 4, hint: "MPU6050 mounted at crown" },
+  { id: "CHEST", label: "CHEST", chart: 1, hint: "Sternum strike plate" },
+  { id: "LEFT_WAIST", label: "LEFT WAIST", chart: 3, hint: "Viewer-left waist plate" },
+  { id: "RIGHT_WAIST", label: "RIGHT WAIST", chart: 2, hint: "Viewer-right waist plate" },
 ] as const;
 
 export const DUMMY_ZONE_IDS: readonly DummyZoneId[] = DUMMY_ZONES.map((z) => z.id);
 
-export const INTENSITY_LEVELS: readonly IntensityLevel[] = ['light', 'medium', 'strong'] as const;
+export const INTENSITY_LEVELS: readonly IntensityLevel[] = ["light", "medium", "strong"] as const;
 
 export const INTENSITY_LABELS: Record<IntensityLevel, string> = {
-  light: 'Light',
-  medium: 'Medium',
-  strong: 'Strong',
+  light: "Light",
+  medium: "Medium",
+  strong: "Strong",
 };
 
 export interface DeviceIntensityPreset {
@@ -132,7 +133,7 @@ export const INTENSITY_PRESETS: Record<IntensityLevel, IntensityPreset> = {
   },
 };
 
-export const DEVICE_LABELS: Record<Device, string> = { MAT: 'Smart Mat', DUMMY: 'Striking Dummy' };
+export const DEVICE_LABELS: Record<Device, string> = { MAT: "Smart Mat", DUMMY: "Striking Dummy" };
 
 /** Peak sample ceiling for the 12-bit ADC used in the simulation bands. */
 export const ADC_MAX = 4095;

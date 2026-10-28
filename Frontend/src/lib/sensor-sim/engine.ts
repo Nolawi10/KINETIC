@@ -20,7 +20,7 @@ import {
   type SessionCounters,
   type SourceFilter,
   emptyCounterBlock,
-} from './types';
+} from "./types";
 
 export type Rng = () => number;
 
@@ -45,7 +45,7 @@ export function randomInt(rng: Rng, min: number, max: number): number {
 }
 
 export function pick<T>(rng: Rng, items: readonly T[]): T {
-  if (!items.length) throw new Error('pick() requires at least one item');
+  if (!items.length) throw new Error("pick() requires at least one item");
   return items[Math.floor(rng() * items.length)] as T;
 }
 
@@ -77,7 +77,7 @@ function baseEvent(
   now: number,
   sessionId: string,
   source: EventSource,
-): Pick<SensorEvent, 'id' | 'timestamp' | 'ts' | 'source' | 'sessionId'> {
+): Pick<SensorEvent, "id" | "timestamp" | "ts" | "source" | "sessionId"> {
   return {
     id: nextEventId(now),
     timestamp: new Date(now).toISOString(),
@@ -91,7 +91,7 @@ function baseEvent(
 export function simulateMatContact(sensorId: MatSensorId, options: GenerateOptions): SensorEvent {
   const { intensity, rng, sessionId } = options;
   const now = options.now ?? Date.now();
-  const source = options.source ?? 'SIMULATED';
+  const source = options.source ?? "SIMULATED";
   const preset = INTENSITY_PRESETS[intensity].mat;
   const scale = options.scale ?? 1;
   const peak = Math.round(
@@ -101,9 +101,9 @@ export function simulateMatContact(sensorId: MatSensorId, options: GenerateOptio
 
   return {
     ...baseEvent(now, sessionId, source),
-    device: 'MAT',
+    device: "MAT",
     sensorId,
-    eventType: 'contact',
+    eventType: "contact",
     peakAmplitude: peak,
     durationMs,
     intensity,
@@ -121,11 +121,9 @@ const ZONE_DIRECTION: Record<DummyZoneId, readonly [number, number, number]> = {
 export function simulateDummyImpact(zoneId: DummyZoneId, options: GenerateOptions): SensorEvent {
   const { intensity, rng, sessionId } = options;
   const now = options.now ?? Date.now();
-  const source = options.source ?? 'SIMULATED';
+  const source = options.source ?? "SIMULATED";
   const preset = INTENSITY_PRESETS[intensity].dummy;
-  const peak = Math.round(
-    clamp(randomBetween(rng, preset.peak[0], preset.peak[1]), 1, ADC_MAX),
-  );
+  const peak = Math.round(clamp(randomBetween(rng, preset.peak[0], preset.peak[1]), 1, ADC_MAX));
   const durationMs = Math.round(randomBetween(rng, preset.durationMs[0], preset.durationMs[1]));
 
   const dir = ZONE_DIRECTION[zoneId];
@@ -148,9 +146,9 @@ export function simulateDummyImpact(zoneId: DummyZoneId, options: GenerateOption
 
   return {
     ...baseEvent(now, sessionId, source),
-    device: 'DUMMY',
+    device: "DUMMY",
     sensorId: zoneId,
-    eventType: 'impact',
+    eventType: "impact",
     peakAmplitude: peak,
     durationMs,
     intensity,
@@ -168,7 +166,7 @@ export function pickAdjacentSensor(rng: Rng, sensorId: MatSensorId): MatSensorId
       Math.abs(sensor.col - spec.col) <= 1 &&
       Math.abs(sensor.row - spec.row) <= 1,
   );
-  return neighbours.length ? (pick(rng, neighbours).id as MatSensorId) : 'M2';
+  return neighbours.length ? (pick(rng, neighbours).id as MatSensorId) : "M2";
 }
 
 /**
@@ -178,7 +176,7 @@ export function pickAdjacentSensor(rng: Rng, sensorId: MatSensorId): MatSensorId
  */
 export function planFootworkSequence(rng: Rng, length?: number): MatSensorId[] {
   const total = length ?? randomInt(rng, 6, 9);
-  const sequence: MatSensorId[] = [rng() < 0.5 ? 'M2' : 'M5'];
+  const sequence: MatSensorId[] = [rng() < 0.5 ? "M2" : "M5"];
 
   while (sequence.length < total) {
     const current = sequence[sequence.length - 1] as MatSensorId;
@@ -199,10 +197,10 @@ export function planFootworkSequence(rng: Rng, length?: number): MatSensorId[] {
 
 /** Preferred zone transitions for boxing-style combinations. */
 const ZONE_TRANSITIONS: Record<DummyZoneId, readonly DummyZoneId[]> = {
-  HEAD: ['CHEST', 'LEFT_WAIST', 'RIGHT_WAIST'],
-  CHEST: ['HEAD', 'LEFT_WAIST', 'RIGHT_WAIST'],
-  LEFT_WAIST: ['CHEST', 'RIGHT_WAIST'],
-  RIGHT_WAIST: ['CHEST', 'LEFT_WAIST'],
+  HEAD: ["CHEST", "LEFT_WAIST", "RIGHT_WAIST"],
+  CHEST: ["HEAD", "LEFT_WAIST", "RIGHT_WAIST"],
+  LEFT_WAIST: ["CHEST", "RIGHT_WAIST"],
+  RIGHT_WAIST: ["CHEST", "LEFT_WAIST"],
 };
 
 /** Combo of 3–6 zones; each step favours an anatomically plausible next target. */
@@ -215,8 +213,7 @@ export function planComboSequence(rng: Rng, length?: number): DummyZoneId[] {
     const preferred: readonly DummyZoneId[] = previous
       ? ZONE_TRANSITIONS[previous]
       : DUMMY_ZONE_IDS;
-    const next: DummyZoneId =
-      rng() < 0.72 ? pick(rng, preferred) : pick(rng, DUMMY_ZONE_IDS);
+    const next: DummyZoneId = rng() < 0.72 ? pick(rng, preferred) : pick(rng, DUMMY_ZONE_IDS);
     if (next === previous) continue;
     sequence.push(next);
     previous = next;
@@ -228,12 +225,12 @@ function addToBlock(block: CounterBlock, event: SensorEvent): CounterBlock {
   const bySensor = { ...block.bySensor };
   const byZone = { ...block.byZone };
   const byIntensity = { ...block.byIntensity };
-  const byIntensityByDevice: CounterBlock['byIntensityByDevice'] = {
+  const byIntensityByDevice: CounterBlock["byIntensityByDevice"] = {
     MAT: { ...block.byIntensityByDevice.MAT },
     DUMMY: { ...block.byIntensityByDevice.DUMMY },
   };
 
-  if (event.device === 'MAT') {
+  if (event.device === "MAT") {
     bySensor[event.sensorId as MatSensorId] += 1;
   } else {
     byZone[event.sensorId as DummyZoneId] += 1;
@@ -243,8 +240,8 @@ function addToBlock(block: CounterBlock, event: SensorEvent): CounterBlock {
 
   return {
     total: block.total + 1,
-    mat: block.mat + (event.device === 'MAT' ? 1 : 0),
-    dummy: block.dummy + (event.device === 'DUMMY' ? 1 : 0),
+    mat: block.mat + (event.device === "MAT" ? 1 : 0),
+    dummy: block.dummy + (event.device === "DUMMY" ? 1 : 0),
     bySensor,
     byZone,
     byIntensity,
@@ -253,21 +250,18 @@ function addToBlock(block: CounterBlock, event: SensorEvent): CounterBlock {
 }
 
 /** Immutably add an event to the simulated/hardware counter blocks. */
-export function addEventToCounters(
-  counters: SessionCounters,
-  event: SensorEvent,
-): SessionCounters {
-  return event.source === 'SIMULATED'
+export function addEventToCounters(counters: SessionCounters, event: SensorEvent): SessionCounters {
+  return event.source === "SIMULATED"
     ? { ...counters, simulated: addToBlock(counters.simulated, event) }
     : { ...counters, hardware: addToBlock(counters.hardware, event) };
 }
 
 /** Rebuild counters from scratch — used after a simulated-data reset. */
 export function countEvents(events: readonly SensorEvent[]): SessionCounters {
-  return events.reduce<SessionCounters>(
-    (counters, event) => addEventToCounters(counters, event),
-    { simulated: emptyCounterBlock(), hardware: emptyCounterBlock() },
-  );
+  return events.reduce<SessionCounters>((counters, event) => addEventToCounters(counters, event), {
+    simulated: emptyCounterBlock(),
+    hardware: emptyCounterBlock(),
+  });
 }
 
 export function mergeCounterBlocks(a: CounterBlock, b: CounterBlock): CounterBlock {
@@ -303,16 +297,13 @@ export function mergeCounterBlocks(a: CounterBlock, b: CounterBlock): CounterBlo
 
 /** Counters respecting the current source filter, so charts never mix sources. */
 export function countersForFilter(counters: SessionCounters, filter: SourceFilter): CounterBlock {
-  if (filter === 'SIMULATED') return counters.simulated;
-  if (filter === 'HARDWARE') return counters.hardware;
+  if (filter === "SIMULATED") return counters.simulated;
+  if (filter === "HARDWARE") return counters.hardware;
   return mergeCounterBlocks(counters.simulated, counters.hardware);
 }
 
-export function filterEvents(
-  events: readonly SensorEvent[],
-  filter: SourceFilter,
-): SensorEvent[] {
-  return filter === 'ALL' ? [...events] : events.filter((event) => event.source === filter);
+export function filterEvents(events: readonly SensorEvent[], filter: SourceFilter): SensorEvent[] {
+  return filter === "ALL" ? [...events] : events.filter((event) => event.source === filter);
 }
 
 export function mostFrequent<T extends string>(counts: Record<T, number>): T | null {
@@ -383,7 +374,7 @@ export function bucketActivity(
   bucketMs = 60_000,
 ): ActivityBucket[] {
   const buckets: ActivityBucket[] = Array.from({ length: minutes }, (_, index) => ({
-    label: index === minutes - 1 ? 'now' : `${index - (minutes - 1)}m`,
+    label: index === minutes - 1 ? "now" : `${index - (minutes - 1)}m`,
     mat: 0,
     dummy: 0,
   }));
@@ -394,7 +385,7 @@ export function bucketActivity(
     const index = minutes - 1 - Math.floor(age / bucketMs);
     const bucket = buckets[index];
     if (!bucket) continue;
-    if (event.device === 'MAT') bucket.mat += 1;
+    if (event.device === "MAT") bucket.mat += 1;
     else bucket.dummy += 1;
   }
   return buckets;
@@ -407,12 +398,9 @@ export interface DummyCombo {
 }
 
 /** Group dummy impacts separated by more than `gapMs` into combinations. */
-export function groupDummyCombos(
-  events: readonly SensorEvent[],
-  gapMs = 1500,
-): DummyCombo[] {
+export function groupDummyCombos(events: readonly SensorEvent[], gapMs = 1500): DummyCombo[] {
   const impacts = events
-    .filter((event) => event.device === 'DUMMY')
+    .filter((event) => event.device === "DUMMY")
     .slice()
     .sort((a, b) => a.ts - b.ts);
 
@@ -437,15 +425,15 @@ export function groupDummyCombos(
 export function formatClock(ts: number): string {
   const date = new Date(ts);
   return [date.getHours(), date.getMinutes(), date.getSeconds()]
-    .map((part) => part.toString().padStart(2, '0'))
-    .join(':');
+    .map((part) => part.toString().padStart(2, "0"))
+    .join(":");
 }
 
 export function formatSessionDuration(durationMs: number): string {
   const totalSeconds = Math.floor(durationMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 /** Re-export the device union for consumers that only import from the engine. */

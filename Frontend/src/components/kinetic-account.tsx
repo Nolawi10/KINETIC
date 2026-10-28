@@ -1,15 +1,120 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-const Account = createContext<{user:User|null;ready:boolean; signIn:()=>void}>({user:null,ready:false,signIn:()=>{}});
-export const useAccount=()=>useContext(Account);
-export function KineticAccountProvider({children}:{children:ReactNode}) {
- const [user,setUser]=useState<User|null>(null); const [ready,setReady]=useState(false); const [open,setOpen]=useState(false); const [signup,setSignup]=useState(false); const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');
- useEffect(()=>{supabase.auth.getSession().then(({data})=>{setUser(data.session?.user??null);setReady(true);});const {data}=supabase.auth.onAuthStateChange((event,session)=>{if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT','USER_UPDATED'].includes(event)){setUser(session?.user??null);setReady(true);if(session)setOpen(false);}});return ()=>data.subscription.unsubscribe();},[]);
- async function submit(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setMessage('');const fd=new FormData(e.currentTarget);const email=String(fd.get('email'));const password=String(fd.get('password'));try{const result=signup?await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.href}}):await supabase.auth.signInWithPassword({email,password});if(result.error)throw result.error;if(signup&&!result.data.session)setMessage('Check your email to confirm your account.');}catch(e){setMessage(e instanceof Error?e.message:'Unable to sign in.');}finally{setBusy(false);}}
- return <Account.Provider value={{user,ready,signIn:()=>setOpen(true)}}>{children}<Dialog open={open} onOpenChange={setOpen}><DialogContent className="tactical-dialog"><DialogHeader><DialogTitle>{signup?'CREATE FIGHTER ACCOUNT':'FIGHTER SIGN IN'}</DialogTitle><DialogDescription>Private sparring footage. Saved reports. Your training history.</DialogDescription></DialogHeader><form onSubmit={submit} className="tactical-form"><label>Email<Input name="email" type="email" required maxLength={255}/></label><label>Password<Input name="password" type="password" minLength={8} maxLength={128} required/></label><Button disabled={busy} type="submit">{busy?'CONNECTING…':signup?'Create account':'Sign in'}</Button></form><Button variant="outline" disabled={busy} onClick={async()=>{setBusy(true);const r=await lovable.auth.signInWithOAuth('google',{redirect_uri:window.location.origin+window.location.pathname});setMessage(r.error?.message??'');setBusy(false);}}>Continue with Google</Button><Button variant="ghost" onClick={()=>{setSignup(!signup);setMessage('');}}>{signup?'Already registered? Sign in':'New fighter? Create account'}</Button>{message&&<p role="status" className="tactical-notice">{message}</p>}</DialogContent></Dialog></Account.Provider>;
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+const Account = createContext<{ user: User | null; ready: boolean; signIn: () => void }>({
+  user: null,
+  ready: false,
+  signIn: () => {},
+});
+export const useAccount = () => useContext(Account);
+export function KineticAccountProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [signup, setSignup] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(event)) {
+        setUser(session?.user ?? null);
+        setReady(true);
+        if (session) setOpen(false);
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email"));
+    const password = String(fd.get("password"));
+    try {
+      const result = signup
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.href },
+          })
+        : await supabase.auth.signInWithPassword({ email, password });
+      if (result.error) throw result.error;
+      if (signup && !result.data.session) setMessage("Check your email to confirm your account.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Unable to sign in.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Account.Provider value={{ user, ready, signIn: () => setOpen(true) }}>
+      {children}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="tactical-dialog">
+          <DialogHeader>
+            <DialogTitle>{signup ? "CREATE FIGHTER ACCOUNT" : "FIGHTER SIGN IN"}</DialogTitle>
+            <DialogDescription>
+              Private sparring footage. Saved reports. Your training history.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="tactical-form">
+            <label>
+              Email
+              <Input name="email" type="email" required maxLength={255} />
+            </label>
+            <label>
+              Password
+              <Input name="password" type="password" minLength={8} maxLength={128} required />
+            </label>
+            <Button disabled={busy} type="submit">
+              {busy ? "CONNECTING…" : signup ? "Create account" : "Sign in"}
+            </Button>
+          </form>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const r = await lovable.auth.signInWithOAuth("google", {
+                redirect_uri: window.location.origin + window.location.pathname,
+              });
+              setMessage(r.error?.message ?? "");
+              setBusy(false);
+            }}
+          >
+            Continue with Google
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSignup(!signup);
+              setMessage("");
+            }}
+          >
+            {signup ? "Already registered? Sign in" : "New fighter? Create account"}
+          </Button>
+          {message && (
+            <p role="status" className="tactical-notice">
+              {message}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Account.Provider>
+  );
 }

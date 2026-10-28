@@ -26,7 +26,10 @@ export function getImpactTarget(time: number) {
     const next = IMPACT_POINTS[i];
     if (!previous || !next || time > next.time) continue;
     const progress = (time - previous.time) / (next.time - previous.time);
-    return { x: previous.x + (next.x - previous.x) * progress, y: previous.y + (next.y - previous.y) * progress };
+    return {
+      x: previous.x + (next.x - previous.x) * progress,
+      y: previous.y + (next.y - previous.y) * progress,
+    };
   }
   return null;
 }

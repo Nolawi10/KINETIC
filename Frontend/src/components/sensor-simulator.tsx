@@ -1,18 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, RotateCcw, Square } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useNow, useSensorSim } from '@/hooks/use-sensor-sim';
-import { countersForFilter, formatSessionDuration } from '@/lib/sensor-sim/engine';
-import { sensorSimStore } from '@/lib/sensor-sim/store';
-import type { SourceFilter } from '@/lib/sensor-sim/types';
-import { MatSimulatorPanel } from './sensor-sim/mat-panel';
-import EventStream from './sensor-sim/event-stream';
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, RotateCcw, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNow, useSensorSim } from "@/hooks/use-sensor-sim";
+import { countersForFilter, formatSessionDuration } from "@/lib/sensor-sim/engine";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
+import type { SourceFilter } from "@/lib/sensor-sim/types";
+import { MatSimulatorPanel } from "./sensor-sim/mat-panel";
+import EventStream from "./sensor-sim/event-stream";
 
-const SOURCE_FILTERS: readonly SourceFilter[] = ['ALL', 'SIMULATED', 'HARDWARE'];
+const SOURCE_FILTERS: readonly SourceFilter[] = ["ALL", "SIMULATED", "HARDWARE"];
 const FILTER_LABELS: Record<SourceFilter, string> = {
-  ALL: 'All sources',
-  SIMULATED: 'Simulated',
-  HARDWARE: 'Hardware',
+  ALL: "All sources",
+  SIMULATED: "Simulated",
+  HARDWARE: "Hardware",
 };
 
 /**
@@ -66,24 +66,24 @@ export function SensorSimulator() {
             <button
               type="button"
               className="sim-segment-btn"
-              data-active={state.mode === 'SIMULATION'}
-              aria-pressed={state.mode === 'SIMULATION'}
-              onClick={() => sensorSimStore.setMode('SIMULATION')}
+              data-active={state.mode === "SIMULATION"}
+              aria-pressed={state.mode === "SIMULATION"}
+              onClick={() => sensorSimStore.setMode("SIMULATION")}
             >
               Simulation
             </button>
             <button
               type="button"
               className="sim-segment-btn"
-              data-active={state.mode === 'HARDWARE'}
-              aria-pressed={state.mode === 'HARDWARE'}
-              onClick={() => sensorSimStore.setMode('HARDWARE')}
+              data-active={state.mode === "HARDWARE"}
+              aria-pressed={state.mode === "HARDWARE"}
+              onClick={() => sensorSimStore.setMode("HARDWARE")}
             >
               Hardware
             </button>
           </div>
           <span className="state-badge" data-sim-mode={state.mode}>
-            {state.mode === 'SIMULATION' ? '● DEMO MODE' : '● HARDWARE MODE'}
+            {state.mode === "SIMULATION" ? "● DEMO MODE" : "● HARDWARE MODE"}
           </span>
         </div>
       </div>
@@ -109,7 +109,7 @@ export function SensorSimulator() {
 
         <div className="sim-toolbar-group sim-toolbar-stats">
           <span className="micro-label">
-            SESSION {formatSessionDuration(duration)} · {counters.total} EVENTS ·{' '}
+            SESSION {formatSessionDuration(duration)} · {counters.total} EVENTS ·{" "}
             {state.counters.simulated.total} SIM / {state.counters.hardware.total} HW
           </span>
           <div className="sim-toolbar-actions">
@@ -123,18 +123,18 @@ export function SensorSimulator() {
             </Button>
             <Button
               size="sm"
-              variant={confirmReset ? 'destructive' : 'ghost'}
+              variant={confirmReset ? "destructive" : "ghost"}
               onClick={requestReset}
               aria-live="polite"
             >
               {confirmReset ? <AlertTriangle /> : <RotateCcw />}
-              {confirmReset ? 'Confirm reset (demo only)' : 'Reset demo data'}
+              {confirmReset ? "Confirm reset (demo only)" : "Reset demo data"}
             </Button>
           </div>
         </div>
       </div>
 
-      {state.mode === 'HARDWARE' ? (
+      {state.mode === "HARDWARE" ? (
         <p role="status" className="tactical-notice">
           Hardware mode selected. Simulation is paused — real events are accepted through the
           existing <code>POST /api/telemetry</code> receiver and tagged HARDWARE. Demo events are
@@ -142,7 +142,7 @@ export function SensorSimulator() {
         </p>
       ) : null}
 
-      {state.sourceFilter === 'HARDWARE' && state.counters.hardware.total === 0 ? (
+      {state.sourceFilter === "HARDWARE" && state.counters.hardware.total === 0 ? (
         <p role="status" className="tactical-notice">
           No hardware events received in this session. Switch the source filter to All or Simulated
           to work with the simulator.

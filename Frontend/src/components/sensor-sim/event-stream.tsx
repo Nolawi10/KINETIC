@@ -1,12 +1,15 @@
-import { useSensorSim } from '@/hooks/use-sensor-sim';
-import { DEVICE_LABELS, INTENSITY_LABELS } from '@/lib/sensor-sim/types';
-import type { SensorEvent } from '@/lib/sensor-sim/types';
+import { useSensorSim } from "@/hooks/use-sensor-sim";
+import { DEVICE_LABELS, INTENSITY_LABELS } from "@/lib/sensor-sim/types";
+import type { SensorEvent, SensorSimState } from "@/lib/sensor-sim/types";
 
 export default function EventStream() {
-  const sim = useSensorSim() as any; const state = sim.state || sim; const actions = sim.actions || { setSourceFilter: (f:any)=>sim.setSourceFilter && sim.setSourceFilter(f) };
+  const state = useSensorSim();
   const { events, sourceFilter } = state;
 
-  const filtered = sourceFilter === 'ALL' ? events : events.filter((event:any) => event.source === sourceFilter);
+  const filtered =
+    sourceFilter === "ALL"
+      ? events
+      : events.filter((event: SensorEvent) => event.source === sourceFilter);
 
   return (
     <section className="sim-stream">
@@ -17,11 +20,11 @@ export default function EventStream() {
           <p>Newest events first. Filter by source.</p>
         </div>
         <div className="sim-stream-filters">
-          {(['ALL', 'SIMULATED', 'HARDWARE'] as const).map((filter) => (
+          {(["ALL", "SIMULATED", "HARDWARE"] as const).map((filter) => (
             <button
               key={filter}
               type="button"
-              className={`sim-chip ${sourceFilter === filter ? 'sim-chip-active' : ''}`}
+              className={`sim-chip ${sourceFilter === filter ? "sim-chip-active" : ""}`}
               onClick={() => actions.setSourceFilter(filter)}
             >
               {filter}
@@ -54,7 +57,7 @@ export default function EventStream() {
                     </span>
                     <small>{DEVICE_LABELS[event.device]}</small>
                   </td>
-                  <td className="accent-cyan">{event.sensorId.replace('_', ' ')}</td>
+                  <td className="accent-cyan">{event.sensorId.replace("_", " ")}</td>
                   <td>{event.eventType.toUpperCase()}</td>
                   <td>{Math.round(event.peakAmplitude)}</td>
                   <td>{event.durationMs} ms</td>
