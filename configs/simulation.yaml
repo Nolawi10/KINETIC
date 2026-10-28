@@ -1,0 +1,327 @@
+# KINETIC Synthetic Data Simulation Configuration
+
+simulation:
+  version: "0.1.0"
+  data_source: "synthetic"
+  
+  # Dataset size presets
+  presets:
+    small:
+      n_participants: 5
+      n_sessions_per_participant: 2
+      n_events_per_session: 20
+    medium:
+      n_participants: 15
+      n_sessions_per_participant: 3
+      n_events_per_session: 50
+    large:
+      n_participants: 50
+      n_sessions_per_participant: 5
+      n_events_per_session: 100
+  
+  # Use preset or override individual settings
+  use_preset: "small"
+  
+  # Override settings (if use_preset is null or to override specific values)
+  n_participants: null
+  n_sessions_per_participant: null
+  n_events_per_session: null
+
+# Piezoelectric sensor simulation
+piezo:
+  # Sampling configuration
+  sampling_frequency: 2000  # Hz
+  window_duration: 0.3  # seconds per event
+  pre_event_duration: 0.05  # seconds before impact
+  post_event_duration: 0.25  # seconds after impact
+  
+  # Target zones
+  zones:
+    - head_zone
+    - left_side_zone
+    - right_side_zone
+    - chest_zone
+    - waist_zone
+    - no_impact
+  
+  # Waveform parameters (damped oscillation model)
+  waveform:
+    # Amplitude parameters (volts or normalized)
+    amplitude_range: [0.1, 1.0]
+    amplitude_noise_std: 0.05
+    
+    # Timing parameters (seconds)
+    rise_time_range: [0.005, 0.015]
+    decay_time_range: [0.02, 0.08]
+    pulse_duration_range: [0.03, 0.1]
+    
+    # Ringing/oscillation parameters
+    ringing_frequency_range: [50, 200]  # Hz
+    damping_ratio_range: [0.3, 0.8]
+    
+    # Noise parameters
+    background_noise_std: 0.02
+    electronic_noise_std: 0.01
+    
+    # Sensor characteristics
+    gain: 1.0
+    sensitivity: 1.0
+    saturation_threshold: 2.0  # volts
+    
+    # Cross-talk between nearby zones
+    crosstalk_enabled: true
+    crosstalk_decay_factor: 0.3  # signal decay per zone distance
+    crosstalk_delay: 0.002  # seconds delay for coupled response
+    
+    # Sensor-to-sensor variation
+    sensor_variation_std: 0.1  # 10% variation between sensors
+    
+    # Event-to-event variation
+    event_variation_std: 0.15  # 15% variation between events
+    
+    # ADC quantization
+    adc_resolution: 12  # bits
+    adc_voltage_range: [-3.3, 3.3]  # volts
+  
+  # Zone-specific parameters
+  zone_parameters:
+    head_zone:
+      base_amplitude: 0.8
+      rise_time_mean: 0.008
+      decay_time_mean: 0.04
+    left_side_zone:
+      base_amplitude: 0.7
+      rise_time_mean: 0.010
+      decay_time_mean: 0.05
+    right_side_zone:
+      base_amplitude: 0.7
+      rise_time_mean: 0.010
+      decay_time_mean: 0.05
+    chest_zone:
+      base_amplitude: 0.9
+      rise_time_mean: 0.007
+      decay_time_mean: 0.035
+    waist_zone:
+      base_amplitude: 0.6
+      rise_time_mean: 0.012
+      decay_time_mean: 0.06
+  
+  # Movement-specific parameters (for improved separability)
+  movement_parameters:
+    jab:
+      amplitude_multiplier: 1.0
+      frequency_multiplier: 1.0
+      duration_multiplier: 0.8
+    cross:
+      amplitude_multiplier: 1.3
+      frequency_multiplier: 1.2
+      duration_multiplier: 1.0
+    hook:
+      amplitude_multiplier: 1.1
+      frequency_multiplier: 0.8
+      duration_multiplier: 1.2
+    roundhouse_kick:
+      amplitude_multiplier: 1.5
+      frequency_multiplier: 0.7
+      duration_multiplier: 1.5
+    defensive_movement:
+      amplitude_multiplier: 0.3
+      frequency_multiplier: 0.5
+      duration_multiplier: 0.5
+    footwork_movement:
+      amplitude_multiplier: 0.2
+      frequency_multiplier: 0.6
+      duration_multiplier: 0.6
+    no_action:
+      amplitude_multiplier: 0.05
+      frequency_multiplier: 0.3
+      duration_multiplier: 0.3
+
+# IMU simulation
+imu:
+  # Sampling configuration
+  sampling_frequency: 200  # Hz
+  window_duration: 0.5  # seconds per event
+  
+  # Accelerometer parameters
+  accelerometer:
+    noise_std: 0.05  # m/s²
+    bias_drift_std: 0.01  # m/s² per second
+    range: [-20, 20]  # m/s² (including gravity)
+    
+  # Gyroscope parameters
+  gyroscope:
+    noise_std: 0.01  # rad/s
+    bias_drift_std: 0.001  # rad/s per second
+    range: [-10, 10]  # rad/s
+    
+  # Movement-specific parameters
+  movement_parameters:
+    jab:
+      accel_magnitude_mean: 8.0  # m/s²
+      accel_magnitude_std: 2.0
+      gyro_magnitude_mean: 3.0  # rad/s
+      gyro_magnitude_std: 1.0
+    cross:
+      accel_magnitude_mean: 10.0
+      accel_magnitude_std: 2.5
+      gyro_magnitude_mean: 4.0
+      gyro_magnitude_std: 1.2
+    hook:
+      accel_magnitude_mean: 7.0
+      accel_magnitude_std: 2.0
+      gyro_magnitude_mean: 5.0
+      gyro_magnitude_std: 1.5
+    roundhouse_kick:
+      accel_magnitude_mean: 12.0
+      accel_magnitude_std: 3.0
+      gyro_magnitude_mean: 6.0
+      gyro_magnitude_std: 2.0
+    defensive_movement:
+      accel_magnitude_mean: 3.0
+      accel_magnitude_std: 1.0
+      gyro_magnitude_mean: 2.0
+      gyro_magnitude_std: 0.8
+    footwork_movement:
+      accel_magnitude_mean: 4.0
+      accel_magnitude_std: 1.5
+      gyro_magnitude_mean: 2.5
+      gyro_magnitude_std: 1.0
+    no_action:
+      accel_magnitude_mean: 1.0
+      accel_magnitude_std: 0.5
+      gyro_magnitude_mean: 0.5
+      gyro_magnitude_std: 0.3
+  
+  # Timestamp synchronization
+  clock_offset_range: [-0.01, 0.01]  # seconds
+  timestamp_jitter_std: 0.001  # seconds
+  dropout_rate: 0.001  # probability of dropped sample
+
+# Smart mat simulation
+mat:
+  # Sampling configuration
+  sampling_frequency: 50  # Hz
+  window_duration: 2.0  # seconds per event
+  
+  # Zone configuration
+  zones:
+    - zone_A1  # front-left
+    - zone_A2  # front-center
+    - zone_A3  # front-right
+    - zone_B1  # mid-left
+    - zone_B2  # mid-center
+    - zone_B3  # mid-right
+    - zone_C1  # back-left
+    - zone_C2  # back-center
+    - zone_C3  # back-right
+  
+  # Movement parameters
+  movement_parameters:
+    jab:
+      likely_zones: [zone_A2, zone_B2]
+      transition_probability: 0.3
+      dwell_time_mean: 0.5  # seconds
+    cross:
+      likely_zones: [zone_A2, zone_B2]
+      transition_probability: 0.4
+      dwell_time_mean: 0.4
+    hook:
+      likely_zones: [zone_A1, zone_A3, zone_B1, zone_B3]
+      transition_probability: 0.5
+      dwell_time_mean: 0.3
+    roundhouse_kick:
+      likely_zones: [zone_A1, zone_A3, zone_B1, zone_B3]
+      transition_probability: 0.7
+      dwell_time_mean: 0.2
+    defensive_movement:
+      likely_zones: [zone_B2, zone_C2]
+      transition_probability: 0.6
+      dwell_time_mean: 0.4
+    footwork_movement:
+      likely_zones: [zone_A1, zone_A2, zone_A3, zone_B1, zone_B2, zone_B3]
+      transition_probability: 0.8
+      dwell_time_mean: 0.3
+    no_action:
+      likely_zones: [zone_B2]
+      transition_probability: 0.1
+      dwell_time_mean: 1.0
+  
+  # Noise and uncertainty
+  zone_detection_error_rate: 0.05  # probability of wrong zone
+  pressure_noise_std: 0.1  # normalized
+  missing_zone_rate: 0.02  # probability of missing detection
+
+# Movement class distribution
+movement_classes:
+  - jab
+  - cross
+  - hook
+  - roundhouse_kick
+  - defensive_movement
+  - footwork_movement
+  - no_action
+
+class_distribution:
+  jab: 0.20
+  cross: 0.20
+  hook: 0.15
+  roundhouse_kick: 0.10
+  defensive_movement: 0.15
+  footwork_movement: 0.10
+  no_action: 0.10
+
+# Target zone distribution
+zone_distribution:
+  head_zone: 0.15
+  left_side_zone: 0.20
+  right_side_zone: 0.20
+  chest_zone: 0.30
+  waist_zone: 0.10
+  no_impact: 0.05
+
+# Participant profiles
+participant_profiles:
+  - name: "beginner"
+    experience_group: "novice"
+    amplitude_multiplier: 0.7
+    timing_variation: 1.3
+    noise_multiplier: 1.2
+  - name: "intermediate"
+    experience_group: "intermediate"
+    amplitude_multiplier: 1.0
+    timing_variation: 1.0
+    noise_multiplier: 1.0
+  - name: "advanced"
+    experience_group: "expert"
+    amplitude_multiplier: 1.3
+    timing_variation: 0.8
+    noise_multiplier: 0.8
+
+profile_distribution:
+  beginner: 0.4
+  intermediate: 0.4
+  advanced: 0.2
+
+# Output configuration
+output:
+  base_dir: "kinetic_data"
+  raw_subdir: "raw"
+  processed_subdir: "processed"
+  metadata_subdir: "metadata"
+  annotations_subdir: "annotations"
+  
+  # File formats
+  waveform_format: "npz"  # "csv" for small samples, "npz" for larger
+  imu_format: "npz"
+  mat_format: "csv"
+  metadata_format: "csv"
+  
+  # Compression
+  compress_npz: true
+  
+  # Batch size for writing
+  batch_size: 100
+
+# Random seed
+random_seed: 42

@@ -1,0 +1,36 @@
+# Core dependencies
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Model libraries
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Deep learning (optional)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer vision
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+
+# Configuration and utilities
+pyyaml>=6.0
+joblib>=1.3.0
+tqdm>=4.65.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Optional: Streamlit dashboard
+streamlit>=1.25.0
+
+# Optional: Ultralytics for YOLO
+# ultralytics>=8.0.0

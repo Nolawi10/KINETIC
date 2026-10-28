@@ -1,0 +1,1 @@
+(Get-Content 'E:\Kinetic Models\Frontend\src\routes\live.tsx').Count | Out-File -FilePath 'E:\Kinetic Models\count.txt'

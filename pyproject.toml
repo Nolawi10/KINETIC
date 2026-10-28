@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinetic"
+version = "0.1.0"
+description = "KINETIC - Affordable Multimodal Sports-Intelligence System"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Team Restorers", email = "team@parc2026.org"}
+]
+keywords = ["machine-learning", "sports-intelligence", "sensor-fusion", "pose-estimation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.3.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "opencv-python>=4.8.0",
+    "mediapipe>=0.10.0",
+    "pyyaml>=6.0",
+    "joblib>=1.3.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+dashboard = [
+    "streamlit>=1.25.0",
+]
+yolo = [
+    "ultralytics>=8.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/teamrestorers/kinetic"
+Documentation = "https://github.com/teamrestorers/kinetic/docs"
+Repository = "https://github.com/teamrestorers/kinetic"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

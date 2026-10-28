@@ -1,0 +1,149 @@
+# KINETIC Model Training and Evaluation Configuration
+
+# Target variable
+target:
+  movement_class: true  # Predict movement type
+  target_zone: false   # Predict target zone (optional)
+
+# Feature selection
+features:
+  use_piezo_features: true
+  use_imu_features: true
+  use_mat_features: true
+  # Feature columns to exclude (metadata columns)
+  exclude_columns:
+    - event_id
+    - participant_id
+    - session_id
+    - movement_class
+    - target_zone
+
+# Model configurations
+models:
+  # Baseline models
+  dummy:
+    enabled: true
+    strategy: "stratified"  # "most_frequent", "stratified", "uniform"
+  
+  logistic_regression:
+    enabled: true
+    C: 1.0
+    max_iter: 1000
+    class_weight: "balanced"
+  
+  knn:
+    enabled: true
+    n_neighbors: 5
+    weights: "uniform"
+  
+  svm:
+    enabled: true
+    C: 1.0
+    kernel: "rbf"
+    class_weight: "balanced"
+  
+  decision_tree:
+    enabled: true
+    max_depth: ~  # YAML null for None
+    class_weight: "balanced"
+  
+  random_forest:
+    enabled: true
+    n_estimators: 300
+    max_depth: ~  # YAML null for None
+    class_weight: "balanced"
+    random_state: 42
+    n_jobs: -1
+  
+  extra_trees:
+    enabled: true
+    n_estimators: 300
+    max_depth: ~  # YAML null for None
+    class_weight: "balanced"
+    random_state: 42
+    n_jobs: -1
+  
+  xgboost:
+    enabled: true
+    n_estimators: 300
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: "multi:softprob"
+    eval_metric: "mlogloss"
+    tree_method: "hist"
+    random_state: 42
+  
+  lightgbm:
+    enabled: true
+    n_estimators: 300
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: "multiclass"
+    random_state: 42
+  
+  hist_gradient_boosting:
+    enabled: true
+    max_iter: 300
+    max_depth: ~  # YAML null for None
+    class_weight: "balanced"
+    random_state: 42
+
+# Neural network models (PyTorch)
+neural_models:
+  cnn:
+    window_samples: 500
+    include_imu: true
+    conv_channels: [32, 64, 128]
+    kernel_sizes: [5, 5, 3]
+    dropout: 0.3
+    learning_rate: 0.001
+    batch_size: 32
+    max_epochs: 100
+    patience: 10
+  
+  mlp:
+    hidden_layers: [128, 64]
+    dropout: 0.3
+    learning_rate: 0.001
+    batch_size: 32
+    max_epochs: 100
+    patience: 10
+
+# Hyperparameter tuning (optional)
+tuning:
+  enabled: false
+  n_trials: 50
+  cv_folds: 5
+
+# Training settings
+training:
+  random_state: 42
+  cross_validation: false
+  cv_folds: 5
+  early_stopping: true
+  early_stopping_rounds: 10
+
+# Evaluation metrics
+metrics:
+  accuracy: true
+  balanced_accuracy: true
+  macro_precision: true
+  macro_recall: true
+  macro_f1: true
+  weighted_f1: true
+  per_class_precision: true
+  per_class_recall: true
+  per_class_f1: true
+  confusion_matrix: true
+
+# Output settings
+output:
+  models_dir: "models"
+  predictions_dir: "results/predictions"
+  metrics_dir: "results/metrics"
+  save_models: true
+  save_predictions: true

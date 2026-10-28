@@ -1,0 +1,1 @@
+node "E:\Kinetic Models\countlines.js" | Out-File -FilePath "E:\Kinetic Models\out.txt"

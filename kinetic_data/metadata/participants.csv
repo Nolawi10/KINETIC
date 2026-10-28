@@ -1,0 +1,6 @@
+participant_id,data_source,simulation_profile,experience_group,age_group,height_cm,weight_kg
+P001,synthetic,intermediate,intermediate,36-45,185.75793759734148,80.92104087178092
+P002,synthetic,beginner,novice,26-35,189.26867054910267,82.83419105971059
+P003,synthetic,intermediate,intermediate,36-45,173.511578136867,71.12394072697744
+P004,synthetic,advanced,expert,18-25,179.31595360241994,84.6828483981249
+P005,synthetic,intermediate,intermediate,26-35,176.63754361047503,61.91451768312526

@@ -1,0 +1,11 @@
+session_id,participant_id,data_source,simulation_version,random_seed,session_timestamp,sensor_configuration,camera_configuration,environment_conditions
+P001_S001,P001,synthetic,0.1.0,42,2024-01-01T11:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P001_S002,P001,synthetic,0.1.0,43,2024-01-08T16:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P002_S001,P002,synthetic,0.1.0,42,2024-01-01T16:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P002_S002,P002,synthetic,0.1.0,43,2024-01-08T12:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P003_S001,P003,synthetic,0.1.0,42,2024-01-01T15:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P003_S002,P003,synthetic,0.1.0,43,2024-01-08T11:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P004_S001,P004,synthetic,0.1.0,42,2024-01-01T16:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P004_S002,P004,synthetic,0.1.0,43,2024-01-08T15:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P005_S001,P005,synthetic,0.1.0,42,2024-01-01T12:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting
+P005_S002,P005,synthetic,0.1.0,43,2024-01-08T10:00:00,5-zone_piezo_mpu6050,front_view_1080p_30fps,indoor_lighting

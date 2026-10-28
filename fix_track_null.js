@@ -1,0 +1,10 @@
+const fs = require('fs');
+const p = 'E:/Kinetic Models/Frontend/src/lib/music-store.ts';
+let c = fs.readFileSync(p, 'utf8');
+c = c.replace('        set({ currentTrack: tracks[idx], currentTime: 0 });', '        set({ currentTrack: tracks[idx] || null, currentTime: 0 });');
+c = c.replace('        set({ currentTrack: tracks[0], currentTime: 0 });', '        set({ currentTrack: tracks[0] || null, currentTime: 0 });');
+c = c.replace('        set({ currentTrack: tracks[nextIdx], currentTime: 0 });', '        set({ currentTrack: tracks[nextIdx] || null, currentTime: 0 });');
+c = c.replace('        set({ currentTrack: tracks[tracks.length - 1], currentTime: 0 });', '        set({ currentTrack: tracks[tracks.length - 1] || null, currentTime: 0 });');
+c = c.replace('        set({ currentTrack: tracks[idx - 1], currentTime: 0 });', '        set({ currentTrack: tracks[idx - 1] || null, currentTime: 0 });');
+fs.writeFileSync(p, c, 'utf8');
+console.log('ok');

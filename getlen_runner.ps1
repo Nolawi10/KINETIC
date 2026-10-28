@@ -1,0 +1,1 @@
+node "E:\Kinetic Models\getlen.js" | Out-File "E:\Kinetic Models\getlen_out.txt"

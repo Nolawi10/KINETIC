@@ -1,0 +1,18 @@
+- [x] Add the uploaded-logo marquee and sport-specific metric filters.
+- [x] Add simulated vision, hardware architecture, modules, CTA, and footer.
+- [x] Verify sport rules, logo loading, motion, and page layout.
+- [x] Add Training Modes navigation and uploaded combat video with synchronized overlay and modal.
+- [x] Add five selectable discipline profiles and verify playback, impact timing, and modal controls.
+- [x] Replace the left navigation circle with the supplied KINETIC logo and update the favicon.
+- [x] Use the updated KINETIC logo and favicon.
+- [x] Build Live Session with simulation controls and saved sessions.
+- [x] Build Analytics with filters, charts and full reports.
+- [x] Build Settings with hardware simulation, calibration and saved preferences.
+- [x] Add private sparring uploads, authenticated AI analysis and saved feedback.
+- [x] Verify navigation, layouts, controls and live AI frame-analysis response.
+- [ ] Verify signed-in uploads, saved reports, saved preferences and saved sessions — blocked: no fighter account exists; user needs to sign in or sign up.
+- [x] Add four filterable coaching presets and pass selection to Live Session.
+- [x] Expand Analytics with fatigue, combos, form integrity and filterable foul history.
+- [x] Add PDF/CSV exports and coach sharing; verify public interactions.
+- [ ] Refine the smaller centered navigation logo and neutral glass selected tabs.
+- [ ] Polish Analytics and Settings presentation and verify their controls.

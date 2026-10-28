@@ -1,0 +1,19 @@
+label_name,label_category,description,annotation_rules,field_type
+jab,movement_class,Movement type: jab,Label based on observed technique,target
+cross,movement_class,Movement type: cross,Label based on observed technique,target
+hook,movement_class,Movement type: hook,Label based on observed technique,target
+roundhouse_kick,movement_class,Movement type: roundhouse_kick,Label based on observed technique,target
+defensive_movement,movement_class,Movement type: defensive_movement,Label based on observed technique,target
+footwork_movement,movement_class,Movement type: footwork_movement,Label based on observed technique,target
+no_action,movement_class,Movement type: no_action,Label based on observed technique,target
+head_zone,target_zone,Target zone on mannequin: head_zone,Zone where impact occurred,target
+left_side_zone,target_zone,Target zone on mannequin: left_side_zone,Zone where impact occurred,target
+right_side_zone,target_zone,Target zone on mannequin: right_side_zone,Zone where impact occurred,target
+chest_zone,target_zone,Target zone on mannequin: chest_zone,Zone where impact occurred,target
+waist_zone,target_zone,Target zone on mannequin: waist_zone,Zone where impact occurred,target
+no_impact,target_zone,Target zone on mannequin: no_impact,Zone where impact occurred,target
+no_impact,target_zone,No impact detected,Background or miss,target
+detected,detection_status,Event detection status: detected,System detection confidence,metadata
+missed,detection_status,Event detection status: missed,System detection confidence,metadata
+false_positive,detection_status,Event detection status: false_positive,System detection confidence,metadata
+uncertain,detection_status,Event detection status: uncertain,System detection confidence,metadata

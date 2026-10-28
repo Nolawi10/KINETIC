@@ -1,0 +1,90 @@
+# KINETIC Feature Extraction Configuration
+
+# Piezoelectric features
+piezo:
+  # Time-domain features
+  time_domain:
+    max_amplitude: true
+    peak_to_peak: true
+    rms: true
+    signal_energy: true
+    signal_integral: true
+    rise_time: true
+    decay_time: true
+    pulse_duration: true
+    n_peaks: true
+  
+  # Frequency-domain features
+  frequency_domain:
+    dominant_frequency: true
+    spectral_centroid: true
+    spectral_bandwidth: true
+    selected_band_energies: [0, 50, 100, 200, 500]  # Hz bands
+  
+  # Cross-channel features
+  cross_channel:
+    amplitude_ratios: true
+    time_diff_peaks: true
+  
+  # Noise features
+  noise:
+    snr_estimate: true
+
+# IMU features
+imu:
+  # Accelerometer features
+  accelerometer:
+    mean: true
+    std: true
+    magnitude_mean: true
+    magnitude_max: true
+    rms: true
+    jerk_max: true
+  
+  # Gyroscope features
+  gyroscope:
+    mean: true
+    std: true
+    magnitude_max: true
+  
+  # Window features
+  window:
+    energy: true
+
+# Smart mat features
+mat:
+  zone_features:
+    current_zone: true
+    n_transitions: true
+    dwell_time_mean: true
+    dwell_time_std: true
+  
+  balance_features:
+    left_balance: true
+    right_balance: true
+  
+  sequence_features:
+    stance_width: true
+
+# Feature normalization
+normalization:
+  method: "standard"  # "standard", "minmax", "robust"
+  fit_on: "train"  # "train" only
+
+# Window extraction
+windowing:
+  piezo_window_duration: 0.3  # seconds
+  imu_window_duration: 0.5  # seconds
+  mat_window_duration: 2.0  # seconds
+  overlap: 0.0  # No overlap for event-based windows
+
+# Preprocessing
+preprocessing:
+  baseline_correction: true
+  detrending: true
+  filtering:
+    enabled: true
+    type: "bandpass"  # "lowpass", "highpass", "bandpass"
+    low_cutoff: 10  # Hz
+    high_cutoff: 500  # Hz
+    order: 4

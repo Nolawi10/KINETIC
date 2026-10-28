@@ -1,0 +1,3 @@
+timestamp,zone_id,foot_side,pressure_level,dwell_time,is_transition
+0.0,zone_A2,left,0.5681667035289022,1.3926964503353798,False
+1.3926964503353798,zone_B1,left,1.0,0.6073035496646202,True
