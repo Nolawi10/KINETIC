@@ -1,7 +1,6 @@
 import MusicPlayer from "@/components/music-player";
 import KineticPerformanceCoach from "@/components/kinetic-performance-coach";
 import SensorSimulator from "@/components/sensor-simulator";
-import Dummy3DContainer from "@/components/dummy-3d/dummy-3d-container";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Pause, Play, ScanLine, Square, Activity, Flame, Radio, Camera } from "lucide-react";
@@ -58,6 +57,11 @@ function LivePage() {
   const [cameraStatus, setCameraStatus] = useState<CameraStatus | null>(null);
   const [usePiCamera, setUsePiCamera] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const checkCamera = async () => {
@@ -269,7 +273,7 @@ function LivePage() {
           </div>
           <div style={{ marginTop: "10px" }}>
             <Instrument title="MUSIC PLAYER" tag="PLAYLIST">
-              <MusicPlayer />
+              {mounted ? <MusicPlayer /> : <div style={{ height: "120px" }} />}
             </Instrument>
           </div>
           <div className="live-under">

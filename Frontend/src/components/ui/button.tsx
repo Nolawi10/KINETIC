@@ -43,8 +43,15 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => {
+      setMounted(true);
+    }, []);
+    const buttonClassName = mounted
+      ? cn(buttonVariants({ variant, size, className }))
+      : cn(buttonVariants({ variant, size, className }), "opacity-100");
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp className={buttonClassName} ref={ref} {...props} />
     );
   },
 );

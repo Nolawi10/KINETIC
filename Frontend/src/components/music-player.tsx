@@ -25,6 +25,8 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
     muted,
     shuffle,
     repeat,
+    currentTime,
+    duration,
     setCurrentTrack,
     setIsPlaying,
     setVolume,
@@ -102,12 +104,31 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const state = useMusicStore.getState();
-  const currentTime =
-    state.currentTime !== undefined && state.currentTime !== null ? state.currentTime : 0;
-  const duration = state.duration !== undefined && state.duration !== null ? state.duration : 0;
+  const safeCurrentTime =
+    currentTime !== undefined && currentTime !== null ? currentTime : 0;
+  const safeDuration = duration !== undefined && duration !== null ? duration : 0;
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (compact) {
+    if (!mounted) {
+      return (
+        <div
+          className="music-player-compact"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "6px 10px",
+            background: "rgba(255,255,255,0.03)",
+            borderRadius: "6px",
+          }}
+        />
+      );
+    }
     return (
       <div
         className="music-player-compact"
@@ -168,6 +189,12 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
     );
   }
 
+  if (!mounted) {
+    return (
+      <div className="music-player" style={{ display: "flex", flexDirection: "column", gap: "8px", height: "120px" }} />
+    );
+  }
+
   return (
     <div className="music-player" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <audio
@@ -201,11 +228,11 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span style={{ fontSize: "11px", minWidth: "40px" }}>
-          {formatTime(useMusicStore.getState().currentTime)}
+          {formatTime(safeCurrentTime)}
         </span>
         <Slider
-          value={[useMusicStore.getState().currentTime]}
-          max={duration || 100}
+          value={[safeCurrentTime]}
+          max={safeDuration || 100}
           step={0.1}
           onValueChange={(v) => {
             const audio = audioRef.current;
@@ -215,7 +242,7 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
             }
           }}
         />
-        <span style={{ fontSize: "11px", minWidth: "40px" }}>{formatTime(duration)}</span>
+        <span style={{ fontSize: "11px", minWidth: "40px" }}>{formatTime(safeDuration)}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
         <Button size="sm" variant="ghost" onClick={prevTrack} disabled={tracks.length === 0}>
