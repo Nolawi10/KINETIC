@@ -4,7 +4,7 @@ import SensorSimulator from "@/components/sensor-simulator";
 import Dummy3DContainer from "@/components/dummy-3d/dummy-3d-container";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pause, Play, ScanLine, Square, Activity, Flame, Radio } from "lucide-react";
+import { Pause, Play, ScanLine, Square, Activity, Flame, Radio, Camera } from "lucide-react";
 import { TacticalShell, Instrument, tacticalHead } from "@/components/tactical-shell";
 import { TacticalCamera } from "@/components/tactical-camera";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,18 @@ const prompts = [
   "Double jab, cross. Reset your guard.",
   "Exhale through each strike.",
 ];
+
+interface CameraStatus {
+  available: boolean;
+  running: boolean;
+  source: string;
+  width?: number;
+  height?: number;
+  fps?: number;
+  message?: string;
+  error?: string;
+}
+
 function LivePage() {
   const { preset: presetId } = Route.useSearch();
   const preset = getPreset(presetId);
@@ -43,6 +55,52 @@ function LivePage() {
   const [saving, setSaving] = useState(false);
   const { user, signIn } = useAccount();
   const navigate = useNavigate();
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus | null>(null);
+  const [usePiCamera, setUsePiCamera] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+
+  useEffect(() => {
+    const checkCamera = async () => {
+      try {
+        const res = await fetch('/api/camera/status');
+        if (res.ok) {
+          const data = await res.json();
+          setCameraStatus(data);
+          if (data.available && data.running && data.source === 'raspberry_pi_camera') {
+            setUsePiCamera(true);
+          }
+        }
+      } catch (e) {
+        // Ignore errors, will use browser camera
+      }
+    };
+    checkCamera();
+    const interval = setInterval(checkCamera, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const togglePiCamera = async () => {
+    setCameraLoading(true);
+    try {
+      if (usePiCamera) {
+        await fetch('/api/camera/stop', { method: 'POST' });
+        setUsePiCamera(false);
+      } else {
+        const res = await fetch('/api/camera/start', { method: 'POST' });
+        if (res.ok) {
+          setUsePiCamera(true);
+          const statusRes = await fetch('/api/camera/status');
+          if (statusRes.ok) {
+            setCameraStatus(await statusRes.json());
+          }
+        }
+      }
+    } catch (e) {
+      setNotice('Camera control failed');
+    } finally {
+      setCameraLoading(false);
+    }
+  };
   useEffect(() => {
     if (paused || ended) return;
     const t = setInterval(() => {
@@ -139,9 +197,53 @@ function LivePage() {
         <div>
           <div className="canvas-heading">
             <span className="micro-label">01 // VISION ENGINE</span>
-            <span className="success-text">● TRACKING ACTIVE · SIMULATED</span>
+            <span className={usePiCamera && cameraStatus?.available ? "success-text" : ""}>
+              ● {usePiCamera && cameraStatus?.available ? "PI CAMERA ACTIVE" : "TRACKING ACTIVE · SIMULATED"}
+            </span>
+            {cameraStatus && (
+              <span className="micro-label" style={{ marginLeft: '10px' }}>
+                {cameraStatus.source === 'raspberry_pi_camera' 
+                  ? `PI CAM ${cameraStatus.width || 640}x${cameraStatus.height || 480} @ ${cameraStatus.fps || 15}FPS`
+                  : cameraStatus.available 
+                    ? 'BROWSER CAMERA' 
+                    : 'NO CAMERA'}
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={togglePiCamera}
+              disabled={cameraLoading || !cameraStatus?.available}
+              style={{ marginLeft: 'auto' }}
+            >
+              <Camera size={14} />
+              {cameraLoading ? '...' : usePiCamera ? 'Stop Pi Cam' : 'Start Pi Cam'}
+            </Button>
           </div>
-          <TacticalCamera paused={paused} />
+          {usePiCamera && cameraStatus?.available && cameraStatus?.running ? (
+            <div className="tactical-camera" style={{ position: 'relative', width: '100%', height: '400px', background: '#000' }}>
+              <img
+                src="/api/camera/stream"
+                alt="Pi Camera Feed"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={() => setNotice('Pi camera stream error')}
+              />
+              <div className="camera-top">
+                <span className="success-text">
+                  ● LIVE PI CAMERA FEED
+                  <br />
+                  <small>
+                    {cameraStatus.width} × {cameraStatus.height} · {cameraStatus.fps} FPS · RASPBERRY PI
+                  </small>
+                </span>
+              </div>
+              {["tl", "tr", "bl", "br"].map((p) => (
+                <span key={p} className={`combat-bracket bracket-${p}`} />
+              ))}
+            </div>
+          ) : (
+            <TacticalCamera paused={paused} />
+          )}
           <div style={{ marginTop: "10px" }}>
             <Instrument title="SENSOR SIMULATOR" tag="DUMMY">
               <SensorSimulator />

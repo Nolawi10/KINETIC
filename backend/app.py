@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response
 from werkzeug.utils import safe_join
 from flask_cors import CORS
 from datetime import datetime, timezone
@@ -19,6 +19,17 @@ import socket
 import urllib.request
 
 from dotenv import load_dotenv
+
+# Pi Camera integration
+try:
+    from pi_camera import get_pi_camera_service, start_pi_camera, stop_pi_camera
+    _PI_CAMERA_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: Could not import Pi camera: {e}")
+    _PI_CAMERA_AVAILABLE = False
+    get_pi_camera_service = None
+    start_pi_camera = None
+    stop_pi_camera = None
 
 # Dummy telemetry receiver
 try:
@@ -795,6 +806,14 @@ if _DUMMY_TELEMETRY_AVAILABLE and start_receiver:
     except Exception as e:
         print(f"Failed to start dummy telemetry receiver: {e}")
 
+# Start Pi camera service (graceful fallback if not available)
+if _PI_CAMERA_AVAILABLE and start_pi_camera:
+    try:
+        start_pi_camera()
+        print("Pi camera service initialized")
+    except Exception as e:
+        print(f"Failed to start Pi camera service: {e}")
+
 
 def _open_browser(url: str) -> None:
     """Open the app, unless explicitly suppressed for automated runs."""
@@ -948,6 +967,68 @@ def refresh_playlist():
         playlist_dir = PLAYLIST_DIR
         exists = os.path.exists(playlist_dir)
         return jsonify({'success': True, 'exists': exists, 'directory': playlist_dir})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Pi Camera API endpoints
+@app.route('/api/camera/status', methods=['GET'])
+def camera_status():
+    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
+        return jsonify({
+            'available': False,
+            'running': False,
+            'source': 'none',
+            'message': 'Pi camera not available'
+        }), 200
+    try:
+        service = get_pi_camera_service()
+        status = service.get_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'available': False,
+            'running': False,
+            'source': 'none',
+            'error': str(e)
+        }), 200
+
+
+@app.route('/api/camera/stream', methods=['GET'])
+def camera_stream():
+    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        service = get_pi_camera_service()
+        if not service.running:
+            return jsonify({'error': 'Camera not running'}), 503
+        return Response(service.generate_mjpeg(),
+                        mimetype='multipart/x-mixed-replace; boundary=frame')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/camera/start', methods=['POST'])
+def camera_start():
+    if not _PI_CAMERA_AVAILABLE or not start_pi_camera:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        success = start_pi_camera()
+        if success:
+            return jsonify({'status': 'started'}), 200
+        else:
+            return jsonify({'error': 'Failed to start camera'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/camera/stop', methods=['POST'])
+def camera_stop():
+    if not _PI_CAMERA_AVAILABLE or not stop_pi_camera:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        stop_pi_camera()
+        return jsonify({'status': 'stopped'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
