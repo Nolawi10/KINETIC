@@ -27,6 +27,7 @@ export default defineConfig({
         "/api/hardware": { target: "http://127.0.0.1:5000", changeOrigin: false },
         "/api/devices": { target: "http://127.0.0.1:5000", changeOrigin: false },
         "/api/telemetry/dummy": { target: "http://127.0.0.1:5000", changeOrigin: false },
+        "/api/camera": { target: "http://127.0.0.1:5000", changeOrigin: false },
       },
       // Transform the route graph while the dev server boots instead of on the
       // first navigation to each screen.
