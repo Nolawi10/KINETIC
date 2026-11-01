@@ -198,8 +198,8 @@ function LivePage() {
           {notice}
         </p>
       )}
-      <div className="live-layout">
-        <div>
+      <div className="live-layout" style={{ width: "100%", maxWidth: "100%" }}>
+        <div style={{ minWidth: 0 }}>
           <div className="canvas-heading">
             <span className="micro-label">01 // VISION ENGINE</span>
             <span className={usePiCamera && cameraStatus?.available ? "success-text" : ""}>
@@ -250,33 +250,70 @@ function LivePage() {
             <TacticalCamera paused={paused} />
           )}
           <div style={{ marginTop: "10px" }}>
-            <Instrument title="SENSOR SIMULATOR" tag="DUMMY">
-              <SensorSimulator />
-            </Instrument>
-          </div>
-          <div style={{ marginTop: "10px" }}>
-            <Instrument title="3D DUMMY SIMULATOR" tag="INTERACTIVE">
-              {mounted ? <Dummy3DContainer /> : (
+            <Instrument title="TRAINING SYSTEMS" tag="MAT + DUMMY">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "16px",
+                  alignItems: "stretch",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <SensorSimulator />
+                </div>
                 <div
                   style={{
-                    height: "400px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    border: "1px solid var(--border-combat)",
                     background: "var(--surface-instrument)",
-                    color: "var(--muted-foreground)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "12px",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
-                  3D DUMMY SIMULATOR · LOADING
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      borderBottom: "1px solid var(--border-combat)",
+                      fontSize: "11px",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    <span>3D DUMMY SIMULATOR</span>
+                    <span style={{ color: "var(--muted-foreground)" }}>ROTATING · HIT ZONES</span>
+                  </div>
+                  {mounted ? (
+                    <div style={{ height: "400px" }}>
+                      <Dummy3DContainer />
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        height: "400px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--muted-foreground)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                      }}
+                    >
+                      3D DUMMY SIMULATOR · LOADING
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </Instrument>
           </div>
           <div style={{ marginTop: "10px" }}>
             <Instrument title="MUSIC PLAYER" tag="PLAYLIST">
-              {mounted ? <MusicPlayer /> : <div style={{ height: "120px" }} />}
+              <div style={{ maxWidth: "600px" }}>
+                {mounted ? <MusicPlayer /> : <div style={{ height: "120px" }} />}
+              </div>
             </Instrument>
           </div>
           <div className="live-under">
