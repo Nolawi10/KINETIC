@@ -251,7 +251,20 @@ function LivePage() {
           </div>
           <div style={{ marginTop: "10px" }}>
             <Instrument title="3D DUMMY SIMULATOR" tag="INTERACTIVE">
-              <Dummy3DContainer />
+              <div
+                style={{
+                  height: "400px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "var(--surface-instrument)",
+                  color: "var(--muted-foreground)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                }}
+              >
+                3D DUMMY SIMULATOR · UNAVAILABLE
+              </div>
             </Instrument>
           </div>
           <div style={{ marginTop: "10px" }}>
