@@ -6,6 +6,9 @@ const isTestEnvironment =
   typeof window !== "undefined" &&
   (window as { navigator?: { userAgent?: string } }).navigator?.userAgent?.includes("jsdom");
 
+// Check if we're on server (SSR)
+const isServer = typeof window === "undefined";
+
 // Lazy load R3F components only when not in test environment
 const Dummy3DContent = lazy(() =>
   import("./dummy-3d-content").then((m) => ({ default: m.Dummy3DContent })),
@@ -25,8 +28,8 @@ export function Dummy3DContainer() {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const [zoom, setZoom] = useState(5);
 
-  // Fallback for test environment (jsdom doesn't support WebGL)
-  if (isTestEnvironment) {
+  // Fallback for test environment (jsdom doesn't support WebGL) or SSR
+  if (isTestEnvironment || isServer) {
     return (
       <div
         className="dummy-3d-wrapper"
