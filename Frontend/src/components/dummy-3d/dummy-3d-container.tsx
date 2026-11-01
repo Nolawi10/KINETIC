@@ -1,13 +1,10 @@
-import { useRef, useState, lazy, Suspense } from "react";
+import { useRef, useState, lazy, Suspense, useEffect } from "react";
 import * as THREE from "three";
 
 // Check if we're in a test environment (jsdom doesn't support WebGL)
 const isTestEnvironment =
   typeof window !== "undefined" &&
   (window as { navigator?: { userAgent?: string } }).navigator?.userAgent?.includes("jsdom");
-
-// Check if we're on server (SSR)
-const isServer = typeof window === "undefined";
 
 // Lazy load R3F components only when not in test environment
 const Dummy3DContent = lazy(() =>
@@ -27,9 +24,14 @@ const Dummy3DContent = lazy(() =>
 export function Dummy3DContainer() {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const [zoom, setZoom] = useState(5);
+  const [mounted, setMounted] = useState(false);
 
-  // Fallback for test environment (jsdom doesn't support WebGL) or SSR
-  if (isTestEnvironment || isServer) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fallback for test environment (jsdom doesn't support WebGL) or SSR/hydration
+  if (isTestEnvironment || !mounted) {
     return (
       <div
         className="dummy-3d-wrapper"
