@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSensorSim } from "@/hooks/use-sensor-sim";
-import { sensorSimStore } from "@/lib/sensor-sim/store";
 
 const DUMMY_MODEL_PATH = "/punching_dummy_rec_room.glb";
 
@@ -16,35 +15,39 @@ useGLTF.preload(DUMMY_MODEL_PATH);
  */
 function DummyMesh() {
   const groupRef = useRef<THREE.Group>(null);
-  const { scene } = useGLTF(DUMMY_MODEL_PATH);
-  const clonedScene = scene.clone();
+  const gltf = useGLTF(DUMMY_MODEL_PATH);
+  const clonedScene = gltf.scene.clone();
   const state = useSensorSim();
   const lastEventRef = useRef<string | null>(null);
   const reactionRef = useRef({ active: false, until: 0, angle: 0 });
 
   useFrame((_, delta) => {
-    const now = Date.now();
-    const events = state.events;
-    if (events.length > 0) {
-      const latest = events[events.length - 1];
-      if (latest && latest.id !== lastEventRef.current && latest.device === "DUMMY") {
-        lastEventRef.current = latest.id;
-        const intensity = latest.intensity === "high" ? 0.25 : latest.intensity === "medium" ? 0.16 : 0.1;
-        reactionRef.current = {
-          active: true,
-          until: now + 280,
-          angle: (Math.random() - 0.5) * intensity,
-        };
+    try {
+      const now = Date.now();
+      const events = state?.events || [];
+      if (events.length > 0) {
+        const latest = events[events.length - 1];
+        if (latest && latest.id !== lastEventRef.current && latest.device === "DUMMY") {
+          lastEventRef.current = latest.id;
+          const intensity = latest.intensity === "high" ? 0.25 : latest.intensity === "medium" ? 0.16 : 0.1;
+          reactionRef.current = {
+            active: true,
+            until: now + 280,
+            angle: (Math.random() - 0.5) * intensity,
+          };
+        }
       }
-    }
-    if (groupRef.current) {
-      if (reactionRef.current.active && now < reactionRef.current.until) {
-        groupRef.current.rotation.y += reactionRef.current.angle * delta * 12;
-      } else if (reactionRef.current.active && now >= reactionRef.current.until) {
-        reactionRef.current.active = false;
-      } else {
-        groupRef.current.rotation.y += delta * 0.3;
+      if (groupRef.current) {
+        if (reactionRef.current.active && now < reactionRef.current.until) {
+          groupRef.current.rotation.y += reactionRef.current.angle * delta * 12;
+        } else if (reactionRef.current.active && now >= reactionRef.current.until) {
+          reactionRef.current.active = false;
+        } else {
+          groupRef.current.rotation.y += delta * 0.3;
+        }
       }
+    } catch (e) {
+      // Ignore frame errors
     }
   });
 
@@ -73,7 +76,7 @@ export function Dummy3DContent({
 }) {
   return (
     <>
-      <Canvas style={{ width: "100%", height: "100%" }} gl={{ antialias: true, alpha: true }}>
+      <Canvas style={{ width: "100%", height: "100%" }} gl={{ antialias: true, alpha: true }} onCreated={() => {}}>
         <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 1.2, zoom + 1]} fov={50} />
         <OrbitControls
           enablePan={false}
@@ -86,7 +89,9 @@ export function Dummy3DContent({
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
         <directionalLight position={[-5, 6, -5]} intensity={0.6} />
-        <DummyMesh />
+        <Suspense fallback={null}>
+          <DummyMesh />
+        </Suspense>
       </Canvas>
 
       {/* Control Panel Overlay */}

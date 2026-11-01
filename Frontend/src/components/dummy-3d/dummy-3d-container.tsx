@@ -8,7 +8,25 @@ const isTestEnvironment =
 
 // Lazy load R3F components only when not in test environment
 const Dummy3DContent = lazy(() =>
-  import("./dummy-3d-content").then((m) => ({ default: m.Dummy3DContent })),
+  import("./dummy-3d-content")
+    .then((m) => ({ default: m.Dummy3DContent }))
+    .catch(() => ({
+      default: () => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "12px",
+          }}
+        >
+          3D DUMMY SIMULATOR · UNAVAILABLE
+        </div>
+      ),
+    })),
 );
 
 /**
