@@ -55,7 +55,7 @@ export function Dummy3DContainer() {
             fontSize: "12px",
           }}
         >
-          3D DUMMY SIMULATOR · TEST MODE
+          3D DUMMY SIMULATOR · LOADING
         </p>
       </div>
     );

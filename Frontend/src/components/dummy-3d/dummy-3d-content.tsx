@@ -1,69 +1,56 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSensorSim } from "@/hooks/use-sensor-sim";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
+
+const DUMMY_MODEL_PATH = "/punching_dummy_rec_room.glb";
+
+useGLTF.preload(DUMMY_MODEL_PATH);
 
 /**
- * Procedural training dummy built from primitive shapes.
- * Represents a human-shaped striking target with head, torso, and base.
+ * GLB training dummy with hit reaction driven by sensor sim events.
  */
 function DummyMesh() {
   const groupRef = useRef<THREE.Group>(null);
+  const { scene } = useGLTF(DUMMY_MODEL_PATH);
+  const clonedScene = scene.clone();
+  const state = useSensorSim();
+  const lastEventRef = useRef<string | null>(null);
+  const reactionRef = useRef({ active: false, until: 0, angle: 0 });
 
-  // Smooth auto-rotation
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
+    const now = Date.now();
+    const events = state.events;
+    if (events.length > 0) {
+      const latest = events[events.length - 1];
+      if (latest && latest.id !== lastEventRef.current && latest.device === "DUMMY") {
+        lastEventRef.current = latest.id;
+        const intensity = latest.intensity === "high" ? 0.25 : latest.intensity === "medium" ? 0.16 : 0.1;
+        reactionRef.current = {
+          active: true,
+          until: now + 280,
+          angle: (Math.random() - 0.5) * intensity,
+        };
+      }
+    }
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.5;
+      if (reactionRef.current.active && now < reactionRef.current.until) {
+        groupRef.current.rotation.y += reactionRef.current.angle * delta * 12;
+      } else if (reactionRef.current.active && now >= reactionRef.current.until) {
+        reactionRef.current.active = false;
+      } else {
+        groupRef.current.rotation.y += delta * 0.3;
+      }
     }
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Base/Stand */}
-      <mesh position={[0, -1.5, 0]} castShadow>
-        <cylinderGeometry args={[0.4, 0.5, 0.3, 32]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.8} metalness={0.2} />
-      </mesh>
-      <mesh position={[0, -1.2, 0]} castShadow>
-        <cylinderGeometry args={[0.15, 0.4, 0.6, 32]} />
-        <meshStandardMaterial color="#16213e" roughness={0.7} metalness={0.3} />
-      </mesh>
-
-      {/* Torso */}
-      <mesh position={[0, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.35, 0.4, 1.2, 32]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.6} metalness={0.4} />
-      </mesh>
-
-      {/* Shoulders */}
-      <mesh position={[-0.5, 0.4, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 0.4, 16]} />
-        <meshStandardMaterial color="#16213e" roughness={0.7} metalness={0.3} />
-      </mesh>
-      <mesh position={[0.5, 0.4, 0]} rotation={[0, 0, -Math.PI / 4]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 0.4, 16]} />
-        <meshStandardMaterial color="#16213e" roughness={0.7} metalness={0.3} />
-      </mesh>
-
-      {/* Neck */}
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <cylinderGeometry args={[0.1, 0.12, 0.2, 16]} />
-        <meshStandardMaterial color="#16213e" roughness={0.7} metalness={0.3} />
-      </mesh>
-
-      {/* Head */}
-      <mesh position={[0, 1.0, 0]} castShadow>
-        <sphereGeometry args={[0.25, 32, 32]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.5} metalness={0.4} />
-      </mesh>
-
-      {/* KINETIC cyan accent line on torso */}
-      <mesh position={[0, 0, 0.41]} rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.1, 0.35, 32]} />
-        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.6} />
-      </mesh>
+    <group ref={groupRef} scale={[1.2, 1.2, 1.2]} position={[0, -1.0, 0]}>
+      <primitive object={clonedScene} />
     </group>
   );
 }
@@ -87,18 +74,18 @@ export function Dummy3DContent({
   return (
     <>
       <Canvas style={{ width: "100%", height: "100%" }} gl={{ antialias: true, alpha: true }}>
-        <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 0, zoom]} fov={50} />
+        <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 1.2, zoom + 1]} fov={50} />
         <OrbitControls
           enablePan={false}
           enableZoom={false}
           minPolarAngle={Math.PI / 6}
           maxPolarAngle={Math.PI / 2}
           autoRotate
-          autoRotateSpeed={1}
+          autoRotateSpeed={0.8}
         />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-        <directionalLight position={[-5, 5, -5]} intensity={0.5} />
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
+        <directionalLight position={[-5, 6, -5]} intensity={0.6} />
         <DummyMesh />
       </Canvas>
 

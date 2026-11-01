@@ -1,6 +1,7 @@
 import MusicPlayer from "@/components/music-player";
 import KineticPerformanceCoach from "@/components/kinetic-performance-coach";
 import SensorSimulator from "@/components/sensor-simulator";
+import Dummy3DContainer from "@/components/dummy-3d/dummy-3d-container";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Pause, Play, ScanLine, Square, Activity, Flame, Radio, Camera } from "lucide-react";
@@ -255,20 +256,22 @@ function LivePage() {
           </div>
           <div style={{ marginTop: "10px" }}>
             <Instrument title="3D DUMMY SIMULATOR" tag="INTERACTIVE">
-              <div
-                style={{
-                  height: "400px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--surface-instrument)",
-                  color: "var(--muted-foreground)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                }}
-              >
-                3D DUMMY SIMULATOR · UNAVAILABLE
-              </div>
+              {mounted ? <Dummy3DContainer /> : (
+                <div
+                  style={{
+                    height: "400px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "var(--surface-instrument)",
+                    color: "var(--muted-foreground)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "12px",
+                  }}
+                >
+                  3D DUMMY SIMULATOR · LOADING
+                </div>
+              )}
             </Instrument>
           </div>
           <div style={{ marginTop: "10px" }}>
