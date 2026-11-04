@@ -14,6 +14,8 @@ import {
   type Device,
   type DummyZoneId,
   type EventSource,
+  type GuidedDemoProgress,
+  type GuidedDemoState,
   type IntensityLevel,
   type MatSensorId,
   type SensorEvent,
@@ -249,11 +251,15 @@ function addToBlock(block: CounterBlock, event: SensorEvent): CounterBlock {
   };
 }
 
-/** Immutably add an event to the simulated/hardware counter blocks. */
+/** Immutably add an event to the simulated/hardware/guided counter blocks. */
 export function addEventToCounters(counters: SessionCounters, event: SensorEvent): SessionCounters {
-  return event.source === "SIMULATED"
-    ? { ...counters, simulated: addToBlock(counters.simulated, event) }
-    : { ...counters, hardware: addToBlock(counters.hardware, event) };
+  if (event.source === "guided_demonstration") {
+    return { ...counters, guided: addToBlock(counters.guided ?? emptyCounterBlock(), event) };
+  }
+  if (event.source === "HARDWARE" || event.source === "hardware_telemetry") {
+    return { ...counters, hardware: addToBlock(counters.hardware, event) };
+  }
+  return { ...counters, simulated: addToBlock(counters.simulated, event) };
 }
 
 /** Rebuild counters from scratch — used after a simulated-data reset. */
@@ -261,6 +267,7 @@ export function countEvents(events: readonly SensorEvent[]): SessionCounters {
   return events.reduce<SessionCounters>((counters, event) => addEventToCounters(counters, event), {
     simulated: emptyCounterBlock(),
     hardware: emptyCounterBlock(),
+    guided: emptyCounterBlock(),
   });
 }
 
@@ -298,8 +305,11 @@ export function mergeCounterBlocks(a: CounterBlock, b: CounterBlock): CounterBlo
 /** Counters respecting the current source filter, so charts never mix sources. */
 export function countersForFilter(counters: SessionCounters, filter: SourceFilter): CounterBlock {
   if (filter === "SIMULATED") return counters.simulated;
-  if (filter === "HARDWARE") return counters.hardware;
-  return mergeCounterBlocks(counters.simulated, counters.hardware);
+  if (filter === "HARDWARE" || filter === "hardware_telemetry") return counters.hardware;
+  if (filter === "guided_demonstration") return counters.guided ?? emptyCounterBlock();
+  if (filter === "camera_inference") return counters.simulated;
+  const merged = mergeCounterBlocks(counters.simulated, counters.hardware);
+  return counters.guided ? mergeCounterBlocks(merged, counters.guided) : merged;
 }
 
 export function filterEvents(events: readonly SensorEvent[], filter: SourceFilter): SensorEvent[] {
@@ -419,6 +429,32 @@ export function groupDummyCombos(events: readonly SensorEvent[], gapMs = 1500): 
     }
   }
   return combos;
+}
+
+/** Active elapsed milliseconds for a guided demo, frozen exactly while paused. */
+export function guidedDemoElapsedMs(demo: GuidedDemoProgress, now: number): number {
+  const activeSegment =
+    demo.running && !demo.paused && demo.startedAt !== null && now > 0
+      ? Math.max(0, now - demo.startedAt)
+      : 0;
+  return Math.min(demo.totalMs, demo.elapsedMs + activeSegment);
+}
+
+/** Completion percentage for a guided demonstration progress bar. */
+export function guidedDemoPercent(demo: GuidedDemoProgress, now: number): number {
+  if (demo.totalMs <= 0) return 0;
+  return clamp((guidedDemoElapsedMs(demo, now) / demo.totalMs) * 100, 0, 100);
+}
+
+/** True while at least one guided demonstration is running or paused. */
+export function guidedDemosActive(demos: GuidedDemoState): boolean {
+  return demos.dummy.running || demos.mat.running;
+}
+
+/** True when every running guided demonstration is paused. */
+export function guidedDemosPaused(demos: GuidedDemoState): boolean {
+  const running = [demos.dummy, demos.mat].filter((demo) => demo.running);
+  return running.length > 0 && running.every((demo) => demo.paused);
 }
 
 /** HH:MM:SS in 24-hour form, independent of the user's locale. */

@@ -82,7 +82,7 @@ export const useMusicStore = create<MusicState>((set, get) => {
     setTracks: (tracks: Track[]) => set({ tracks }),
     setCurrentTrack: (track: Track | null) => {
       set({ currentTrack: track, currentTime: 0 });
-      savePrefs({ currentTrack: track?.id });
+      savePrefs({ currentTrack: track });
     },
     setIsPlaying: (playing: boolean) => {
       set({ isPlaying: playing });
@@ -127,12 +127,12 @@ export const useMusicStore = create<MusicState>((set, get) => {
       if (tracks.length === 0) return;
       if (shuffle) {
         const idx = Math.floor(Math.random() * tracks.length);
-        set({ currentTrack: tracks[idx], currentTime: 0 });
+        set({ currentTrack: tracks[idx] ?? null, currentTime: 0 });
         return;
       }
       const idx = tracks.findIndex((t: Track) => t.id === currentTrack?.id);
       if (idx === -1) {
-        set({ currentTrack: tracks[0], currentTime: 0 });
+        set({ currentTrack: tracks[0] ?? null, currentTime: 0 });
         return;
       }
       if (repeat === "one") {
@@ -144,17 +144,17 @@ export const useMusicStore = create<MusicState>((set, get) => {
         set({ isPlaying: false });
         return;
       }
-      set({ currentTrack: tracks[nextIdx], currentTime: 0 });
+      set({ currentTrack: tracks[nextIdx] ?? null, currentTime: 0 });
     },
     prevTrack: () => {
       const { tracks, currentTrack } = get();
       if (tracks.length === 0) return;
       const idx = tracks.findIndex((t: Track) => t.id === currentTrack?.id);
       if (idx <= 0) {
-        set({ currentTrack: tracks[tracks.length - 1], currentTime: 0 });
+        set({ currentTrack: tracks[tracks.length - 1] ?? null, currentTime: 0 });
         return;
       }
-      set({ currentTrack: tracks[idx - 1], currentTime: 0 });
+      set({ currentTrack: tracks[idx - 1] ?? null, currentTime: 0 });
     },
   };
 });

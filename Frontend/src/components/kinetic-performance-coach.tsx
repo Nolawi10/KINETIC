@@ -1,17 +1,7 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Brain, AlertTriangle, CheckCircle, Target } from "lucide-react";
 import { Instrument } from "@/components/tactical-shell";
-
-interface CoachState {
-  currentInstruction: string;
-  recentEvent: string;
-  strengths: string[];
-  improvements: string[];
-  nextAction: string;
-  progress: string;
-  confidence: number;
-  warnings: string[];
-}
+import { formatClock } from "@/lib/sensor-sim/engine";
 
 interface SessionState {
   running: boolean;
@@ -19,62 +9,103 @@ interface SessionState {
   count: number;
   seconds: number;
   events: Array<{ zone: string; timestamp: number }>;
+  classifierAvailable?: boolean;
+}
+
+interface CoachView {
+  currentInstruction: string;
+  recentEvent: string;
+  strengths: string[];
+  improvements: string[];
+  nextAction: string;
+  progress: string;
+  warnings: string[];
+}
+
+/**
+ * Coaching panel driven only by verified strikes. When the classifier is not
+ * connected it says so instead of inventing feedback from pose landmarks or
+ * guided demonstration events.
+ */
+function buildCoachView(sessionState: SessionState): CoachView {
+  const events = sessionState.events ?? [];
+  const seconds = sessionState.seconds ?? 0;
+  const count = sessionState.count ?? 0;
+  const classifierAvailable = sessionState.classifierAvailable ?? false;
+  const lastEvent = events.length > 0 ? events[events.length - 1] : undefined;
+
+  const strengths: string[] = [];
+  const improvements: string[] = [];
+  const warnings: string[] = [];
+
+  if (!classifierAvailable) {
+    warnings.push(
+      "Verified strike classifier offline — pose landmarks and guided demos are not counted.",
+    );
+  }
+
+  if (classifierAvailable && count > 10) strengths.push("Sustained verified strike volume");
+  if (classifierAvailable && count >= 5 && count <= 10) {
+    strengths.push("Consistent verified strike output");
+  }
+  if (classifierAvailable && count < 5 && seconds > 60) {
+    improvements.push("Increase verified strike output — keep hands active");
+  }
+  if (sessionState.paused) warnings.push("Session paused — timer and demonstrations are frozen.");
+
+  let currentInstruction: string;
+  let nextAction: string;
+  let progress: string;
+
+  if (!classifierAvailable) {
+    currentInstruction = sessionState.running
+      ? "Session is running, but real strike recognition is not yet available."
+      : "Real strike recognition is not yet available.";
+    nextAction = "Connect a verified strike classifier to unlock strike and combo scoring";
+    progress = "N/A";
+  } else if (!sessionState.running && !sessionState.paused) {
+    currentInstruction = "Begin your session when ready.";
+    nextAction = "Start training";
+    progress = "0%";
+  } else if (count === 0) {
+    currentInstruction =
+      seconds < 10
+        ? "Get in position and begin your drill."
+        : "Start your training sequence — awaiting the first verified strike.";
+    nextAction = "Begin first verified repetition";
+    progress = "0%";
+  } else {
+    currentInstruction =
+      count > 20
+        ? "Maintain intensity and focus on technique."
+        : "Keep up the good work — verified strikes are registering.";
+    nextAction = seconds % 60 < 10 ? "Focus on form" : "Continue training";
+    progress = `${Math.min(100, Math.floor((count / 50) * 100))}%`;
+  }
+
+  return {
+    currentInstruction,
+    recentEvent: lastEvent
+      ? `${lastEvent.zone} at ${formatClock(lastEvent.timestamp)}`
+      : classifierAvailable
+        ? "No verified strikes yet"
+        : "Verified strike recognition unavailable",
+    strengths,
+    improvements,
+    nextAction,
+    progress,
+    warnings,
+  };
 }
 
 export default function KineticPerformanceCoach({ sessionState }: { sessionState: SessionState }) {
-  const [coach, setCoach] = useState<CoachState>({
-    currentInstruction: "Begin your session when ready.",
-    recentEvent: "No events yet",
-    strengths: [],
-    improvements: [],
-    nextAction: "Start training",
-    progress: "0%",
-    confidence: 0.8,
-    warnings: [],
-  });
   const [muted, setMuted] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    // Simple coach logic based on session state
-    const updateCoach = () => {
-      const events = sessionState?.events || [];
-      const seconds = sessionState?.seconds || 0;
-      const count = sessionState?.count || 0;
-
-      if (events.length > 0) {
-        const lastEvent = events[events.length - 1];
-        setCoach((prev) => ({
-          ...prev,
-          recentEvent: `Event at ${lastEvent}s`,
-          strengths: count > 10 ? ["Good activity level"] : prev.strengths,
-          improvements: count < 5 && seconds > 60 ? ["Increase engagement"] : prev.improvements,
-          nextAction: seconds % 60 < 10 ? "Focus on form" : "Continue training",
-          progress: `${Math.min(100, Math.floor((count / 50) * 100))}%`,
-          currentInstruction:
-            count > 20 ? "Maintain intensity and focus on technique." : "Keep up the good work.",
-        }));
-      } else {
-        setCoach((prev) => ({
-          ...prev,
-          recentEvent: "No events yet",
-          currentInstruction:
-            seconds < 10
-              ? "Get in position and begin your drill."
-              : "Start your training sequence.",
-          nextAction: "Begin first repetition",
-        }));
-      }
-    };
-
-    updateCoach();
-    const interval = setInterval(updateCoach, 2000);
-    return () => clearInterval(interval);
-  }, [sessionState]);
+  const coach = useMemo(() => buildCoachView(sessionState), [sessionState]);
 
   if (collapsed) {
     return (
-      <Instrument title="PERFORMANCE COACH" tag="AI ASSIST">
+      <Instrument title="PERFORMANCE COACH" tag="VERIFIED DATA">
         <button onClick={() => setCollapsed(false)} style={{ width: "100%", padding: "4px" }}>
           Expand Coach
         </button>
@@ -83,7 +114,7 @@ export default function KineticPerformanceCoach({ sessionState }: { sessionState
   }
 
   return (
-    <Instrument title="PERFORMANCE COACH" tag="AI ASSIST">
+    <Instrument title="PERFORMANCE COACH" tag="VERIFIED DATA">
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
@@ -143,7 +174,7 @@ export default function KineticPerformanceCoach({ sessionState }: { sessionState
             Progress: <strong>{coach.progress}</strong>
           </span>
           <span>
-            Confidence: <strong>{Math.round(coach.confidence * 100)}%</strong>
+            Data: <strong>{sessionState.classifierAvailable ? "VERIFIED" : "UNAVAILABLE"}</strong>
           </span>
         </div>
 

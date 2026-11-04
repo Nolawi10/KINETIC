@@ -5,6 +5,10 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import process from "node:process";
+
+const backendPort = process.env["KINETIC_BACKEND_PORT"] ?? "5000";
+const backendTarget = `http://127.0.0.1:${backendPort}`;
 
 export default defineConfig({
   vite: {
@@ -14,20 +18,21 @@ export default defineConfig({
       proxy: {
         // Be defensive against HMR/cached modules accidentally double-prefixing.
         "^/api/api/.*": {
-          target: "http://127.0.0.1:5000",
+          target: backendTarget,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/api\/api\//, "/api/"),
         },
-        "/api/health": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/models": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/predict": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/training-sessions": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/telemetry": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/coaching-presets": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/hardware": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/devices": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/telemetry/dummy": { target: "http://127.0.0.1:5000", changeOrigin: false },
-        "/api/camera": { target: "http://127.0.0.1:5000", changeOrigin: false },
+        "/api/health": { target: backendTarget, changeOrigin: false },
+        "/api/models": { target: backendTarget, changeOrigin: false },
+        "/api/predict": { target: backendTarget, changeOrigin: false },
+        "/api/training-sessions": { target: backendTarget, changeOrigin: false },
+        "/api/telemetry": { target: backendTarget, changeOrigin: false },
+        "/api/coaching-presets": { target: backendTarget, changeOrigin: false },
+        "/api/hardware": { target: backendTarget, changeOrigin: false },
+        "/api/devices": { target: backendTarget, changeOrigin: false },
+        "/api/telemetry/dummy": { target: backendTarget, changeOrigin: false },
+        "/api/camera": { target: backendTarget, changeOrigin: false },
+        "/api/playlist": { target: backendTarget, changeOrigin: false },
       },
       // Transform the route graph while the dev server boots instead of on the
       // first navigation to each screen.

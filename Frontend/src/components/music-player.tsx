@@ -236,7 +236,7 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
           step={0.1}
           onValueChange={(v) => {
             const audio = audioRef.current;
-            if (audio) {
+            if (audio && v[0] !== undefined) {
               audio.currentTime = v[0];
               setCurrentTime(v[0]);
             }
@@ -266,7 +266,9 @@ export default function MusicPlayer({ compact = false }: { compact?: boolean }) 
           value={[muted ? 0 : volume]}
           max={1}
           step={0.01}
-          onValueChange={(v: number[]) => setVolume(v[0])}
+          onValueChange={(v: number[]) => {
+            if (v[0] !== undefined) setVolume(v[0]);
+          }}
         />
       </div>
       <Button variant="outline" size="sm" onClick={() => setShowPlaylist(!showPlaylist)}>

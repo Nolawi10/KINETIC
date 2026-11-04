@@ -5,6 +5,8 @@ import {
   createRng,
   formatSessionDuration,
   groupDummyCombos,
+  guidedDemoElapsedMs,
+  guidedDemoPercent,
   planComboSequence,
   planFootworkSequence,
   simulateDummyImpact,
@@ -13,6 +15,22 @@ import {
 } from "@/lib/sensor-sim/engine";
 import { MANUAL_THROTTLE_MS, SensorSimStore } from "@/lib/sensor-sim/store";
 import { DUMMY_ZONE_IDS, INTENSITY_PRESETS, MAT_SENSOR_IDS } from "@/lib/sensor-sim/types";
+import {
+  COMBO_WINDOW_MS,
+  DUPLICATE_WINDOW_MS,
+  VerifiedStrikeStore,
+  activeComboStreak,
+  comboLabelFor,
+} from "@/lib/strike-recognition";
+import {
+  pauseSessionTimer,
+  resetSessionTimer,
+  resumeSessionTimer,
+  sessionElapsedMs,
+  sessionRound,
+  sessionSeconds,
+  startSessionTimer,
+} from "@/lib/session-timer";
 
 const BASE_TS = Date.UTC(2026, 0, 1, 12, 0, 0);
 const SESSION = "sim_test_session";
@@ -344,5 +362,349 @@ describe("shared sensor event store", () => {
     expect(counters.byIntensity.light).toBe(1);
     expect(counters.byIntensity.strong).toBe(1);
     store.dispose();
+  });
+
+  it("starts the dummy and mat demonstrations at the same instant", () => {
+    const store = new SensorSimStore({ seed: 42, now: () => now });
+    store.startGuidedDemonstrations();
+
+    const snapshot = store.getSnapshot();
+    expect(snapshot.guidedDemos.dummy.running).toBe(true);
+    expect(snapshot.guidedDemos.mat.running).toBe(true);
+    expect(snapshot.guidedDemos.dummy.paused).toBe(false);
+    expect(snapshot.guidedDemos.mat.paused).toBe(false);
+    expect(snapshot.guidedDemos.dummy.startedAt).toBe(BASE_TS);
+    expect(snapshot.guidedDemos.mat.startedAt).toBe(BASE_TS);
+
+    // Step 0 of both demos fires in the same tick.
+    expect(snapshot.activeDummyZone).toBe("HEAD");
+    expect(snapshot.activeDummyLabel).toBe("HEAD — LEFT JAB");
+    expect(snapshot.activeMatSensors).toEqual(["M1", "M4"]);
+    expect(snapshot.activeMatLabel).toBe("LEFT-FOOT STEP");
+    expect(snapshot.events).toHaveLength(3);
+    expect(snapshot.events.every((event) => event.source === "guided_demonstration")).toBe(true);
+
+    store.stop();
+    store.dispose();
+  });
+
+  it("pauses and resumes both demonstrations without duplicating steps", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(BASE_TS);
+    const store = new SensorSimStore({ seed: 24 });
+
+    store.startGuidedDemonstrations();
+    vi.advanceTimersByTime(5_000);
+    const beforePause = store.getSnapshot();
+    const dummyEventsBefore = beforePause.events.filter((e) => e.device === "DUMMY").length;
+    const matEventsBefore = beforePause.events.filter((e) => e.device === "MAT").length;
+    expect(dummyEventsBefore).toBe(2);
+    expect(matEventsBefore).toBe(4);
+
+    store.pauseGuidedDemonstrations();
+    const paused = store.getSnapshot();
+    expect(paused.guidedDemos.dummy.paused).toBe(true);
+    expect(paused.guidedDemos.mat.paused).toBe(true);
+    const frozenDummy = guidedDemoElapsedMs(paused.guidedDemos.dummy, BASE_TS + 5_000);
+
+    // Ten seconds of wall time while paused must not advance anything.
+    vi.advanceTimersByTime(10_000);
+    const stillPaused = store.getSnapshot();
+    expect(stillPaused.events).toHaveLength(beforePause.events.length);
+    expect(guidedDemoElapsedMs(stillPaused.guidedDemos.dummy, BASE_TS + 15_000)).toBe(frozenDummy);
+    expect(guidedDemoPercent(stillPaused.guidedDemos.mat, BASE_TS + 15_000)).toBeCloseTo(
+      (5_000 / 30_000) * 100,
+      5,
+    );
+
+    store.resumeGuidedDemonstrations();
+    const resumed = store.getSnapshot();
+    expect(resumed.guidedDemos.dummy.paused).toBe(false);
+    expect(resumed.guidedDemos.mat.paused).toBe(false);
+
+    // Resuming replays nothing; the next step is still scheduled at 10 s.
+    vi.advanceTimersByTime(4_900);
+    expect(store.getSnapshot().events).toHaveLength(beforePause.events.length);
+    vi.advanceTimersByTime(100);
+
+    const afterResume = store.getSnapshot();
+    expect(afterResume.events.filter((e) => e.device === "DUMMY")).toHaveLength(3);
+    expect(afterResume.events.filter((e) => e.device === "MAT")).toHaveLength(7);
+
+    const ids = afterResume.events.map((event) => event.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    store.stop();
+    store.dispose();
+  });
+
+  it("runs simultaneous demos to completion at 40 s and 30 s", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(BASE_TS);
+    const store = new SensorSimStore({ seed: 21 });
+
+    store.startGuidedDemonstrations();
+
+    // Mat completes at 30 s while the dummy is still running.
+    vi.advanceTimersByTime(30_000);
+    const matDone = store.getSnapshot();
+    expect(matDone.guidedDemos.mat.running).toBe(false);
+    expect(matDone.guidedDemos.dummy.running).toBe(true);
+    expect(matDone.activeMatSensors).toEqual([]);
+    expect(matDone.activeMatLabel).toBeNull();
+
+    vi.advanceTimersByTime(10_000);
+    const finished = store.getSnapshot();
+    expect(finished.guidedDemos.dummy.running).toBe(false);
+    expect(finished.guidedDemos.mat.running).toBe(false);
+    expect(finished.activeDummyZone).toBeNull();
+    expect(finished.activeDummyLabel).toBeNull();
+    expect(finished.running).toBe(false);
+    expect(finished.events.filter((e) => e.device === "DUMMY")).toHaveLength(8);
+    expect(finished.events.filter((e) => e.device === "MAT")).toHaveLength(17);
+
+    // Nothing may fire after both demonstrations have completed.
+    vi.advanceTimersByTime(20_000);
+    expect(store.getSnapshot().events).toHaveLength(finished.events.length);
+    store.dispose();
+  });
+
+  it("uses scheduled timestamps so a delayed tick cannot drift demo events", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(BASE_TS);
+    const store = new SensorSimStore({ seed: 25 });
+    store.startGuidedDemonstrations();
+
+    // Advance through several steps; each event keeps its exact 5 s offset even
+    // though the driver tick lands up to 100 ms later.
+    vi.advanceTimersByTime(10_500);
+    const snapshot = store.getSnapshot();
+    const scheduled = snapshot.events
+      .filter((event) => event.device === "DUMMY")
+      .map((event) => event.ts - BASE_TS)
+      .sort((a, b) => a - b);
+    expect(scheduled).toEqual([0, 5_000, 10_000]);
+
+    const matOffsets = snapshot.events
+      .filter((event) => event.device === "MAT" && event.sensorId === "M1")
+      .map((event) => event.ts - BASE_TS)
+      .sort((a, b) => a - b);
+    expect(matOffsets).toEqual([0, 10_000]);
+
+    store.stop();
+    store.dispose();
+  });
+
+  it("restartSession resets timer, events, counters, highlights, and demo progress", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(BASE_TS);
+    const store = new SensorSimStore({ seed: 42 });
+    store.startGuidedDemonstrations();
+    vi.advanceTimersByTime(10_000);
+    expect(store.getSnapshot().events.length).toBeGreaterThan(0);
+
+    store.restartSession();
+    const reset = store.getSnapshot();
+    expect(reset.events).toHaveLength(0);
+    expect(reset.counters.simulated.total).toBe(0);
+    expect(reset.activeDummyZone).toBeNull();
+    expect(reset.activeMatSensors).toEqual([]);
+    expect(reset.activeDummyLabel).toBeNull();
+    expect(reset.activeMatLabel).toBeNull();
+    expect(reset.guidedDemos.dummy.running).toBe(false);
+    expect(reset.guidedDemos.mat.running).toBe(false);
+    expect(reset.guidedDemos.dummy.nextStep).toBe(0);
+    expect(reset.running).toBe(false);
+
+    // The cleared ticker must not emit stale events after a restart.
+    vi.advanceTimersByTime(20_000);
+    expect(store.getSnapshot().events).toHaveLength(0);
+
+    // A restarted demonstration begins from step 0 with no duplicates.
+    store.startGuidedDemonstrations();
+    expect(store.getSnapshot().events.filter((e) => e.device === "DUMMY")).toHaveLength(1);
+    store.stop();
+    store.dispose();
+  });
+
+  it("stop clears both demos and their highlights", () => {
+    const store = new SensorSimStore({ seed: 23, now: () => now });
+    store.startGuidedDemonstrations();
+    expect(store.getSnapshot().activeDummyZone).toBe("HEAD");
+
+    store.stop();
+    const stopped = store.getSnapshot();
+    expect(stopped.guidedDemos.dummy.running).toBe(false);
+    expect(stopped.guidedDemos.mat.running).toBe(false);
+    expect(stopped.activeDummyZone).toBeNull();
+    expect(stopped.activeMatSensors).toEqual([]);
+    expect(stopped.activeDummyLabel).toBeNull();
+    expect(stopped.activeMatLabel).toBeNull();
+    store.dispose();
+  });
+});
+
+describe("session timer", () => {
+  it("starts at zero and derives elapsed time from timestamps", () => {
+    const timer = startSessionTimer(BASE_TS);
+    expect(sessionElapsedMs(timer, BASE_TS)).toBe(0);
+    expect(sessionSeconds(timer, BASE_TS + 999)).toBe(0);
+    expect(sessionSeconds(timer, BASE_TS + 1_000)).toBe(1);
+
+    // A late render does not accumulate rounding drift.
+    expect(sessionElapsedMs(timer, BASE_TS + 60_000)).toBe(60_000);
+    expect(sessionSeconds(timer, BASE_TS + 60_000)).toBe(60);
+  });
+
+  it("freezes on pause and continues from the same point on resume", () => {
+    let timer = startSessionTimer(BASE_TS);
+    timer = pauseSessionTimer(timer, BASE_TS + 12_000);
+    expect(sessionSeconds(timer, BASE_TS + 12_000)).toBe(12);
+    expect(sessionSeconds(timer, BASE_TS + 90_000)).toBe(12);
+
+    timer = resumeSessionTimer(timer, BASE_TS + 90_000);
+    expect(sessionSeconds(timer, BASE_TS + 95_000)).toBe(17);
+    expect(sessionElapsedMs(timer, BASE_TS + 90_500)).toBe(12_500);
+  });
+
+  it("cannot be paused or resumed twice into a duplicate segment", () => {
+    let timer = startSessionTimer(BASE_TS);
+    timer = pauseSessionTimer(timer, BASE_TS + 5_000);
+    const pausedTwice = pauseSessionTimer(timer, BASE_TS + 9_000);
+    expect(pausedTwice).toBe(timer);
+
+    timer = resumeSessionTimer(pausedTwice, BASE_TS + 10_000);
+    const resumedTwice = resumeSessionTimer(timer, BASE_TS + 20_000);
+    expect(resumedTwice).toBe(timer);
+    expect(sessionSeconds(timer, BASE_TS + 13_000)).toBe(8);
+  });
+
+  it("resets to zero and rolls rounds over three-minute boundaries", () => {
+    const reset = resetSessionTimer();
+    expect(sessionElapsedMs(reset, BASE_TS)).toBe(0);
+
+    expect(sessionRound(0)).toBe(1);
+    expect(sessionRound(179)).toBe(1);
+    expect(sessionRound(180)).toBe(2);
+    expect(sessionRound(360)).toBe(3);
+    expect(sessionRound(10_000)).toBe(3);
+  });
+});
+
+describe("verified strike recognition", () => {
+  function cameraEvent(strikeType: "JAB" | "CROSS" | "HOOK" | "UPPERCUT" | "ROUNDHOUSE_KICK", ts: number) {
+    const event = simulateDummyImpact("HEAD", {
+      intensity: "medium",
+      rng: createRng(1),
+      sessionId: SESSION,
+      now: ts,
+      source: "camera_inference",
+    });
+    event.strikeType = strikeType;
+    return event;
+  }
+
+  it("defaults to an unavailable classifier and rejects non-verified sources", () => {
+    const store = new VerifiedStrikeStore({ now: () => BASE_TS });
+    expect(store.getSnapshot().classifier.available).toBe(false);
+    expect(store.getSnapshot().strikes).toHaveLength(0);
+
+    const guided = simulateDummyImpact("HEAD", {
+      intensity: "medium",
+      rng: createRng(2),
+      sessionId: SESSION,
+      now: BASE_TS,
+      source: "guided_demonstration",
+    });
+    expect(store.ingestSensorEvent(guided).accepted).toBe(false);
+
+    const poseOnly = simulateDummyImpact("HEAD", {
+      intensity: "medium",
+      rng: createRng(3),
+      sessionId: SESSION,
+      now: BASE_TS,
+      source: "camera_inference",
+    });
+    expect(store.ingestSensorEvent(poseOnly).reason).toBe("missing_strike_type");
+
+    expect(store.ingest({ type: "JAB", source: "SIMULATED" as never }).accepted).toBe(false);
+    expect(store.getSnapshot().strikes).toHaveLength(0);
+  });
+
+  it("accepts genuine classifier events and suppresses duplicates", () => {
+    const store = new VerifiedStrikeStore({ now: () => BASE_TS });
+    const event = cameraEvent("JAB", BASE_TS);
+
+    expect(store.ingestSensorEvent(event).accepted).toBe(true);
+    expect(store.ingestSensorEvent(event).reason).toBe("duplicate");
+
+    const tooSoon = cameraEvent("JAB", BASE_TS + DUPLICATE_WINDOW_MS - 1);
+    expect(store.ingestSensorEvent(tooSoon).reason).toBe("duplicate");
+
+    const acceptedAgain = cameraEvent("JAB", BASE_TS + DUPLICATE_WINDOW_MS + 1);
+    expect(store.ingestSensorEvent(acceptedAgain).accepted).toBe(true);
+
+    const state = store.getSnapshot();
+    expect(state.strikes).toHaveLength(2);
+    expect(state.totals.JAB).toBe(2);
+    expect(state.classifier.available).toBe(true);
+    expect(state.lastStrike?.source).toBe("camera_inference");
+  });
+
+  it("labels terminal combinations in the two-second window", () => {
+    expect(comboLabelFor(["JAB", "CROSS"])).toBe("1-2 COMBO");
+    expect(comboLabelFor(["CROSS", "HOOK"])).toBe("2-3 COMBO");
+    expect(comboLabelFor(["JAB", "CROSS", "HOOK"])).toBe("1-2-3 COMBO");
+    expect(comboLabelFor(["JAB", "JAB", "CROSS"])).toBe("DOUBLE JAB COMBO");
+    expect(comboLabelFor(["HOOK", "UPPERCUT"])).toBeNull();
+  });
+
+  it("emits one combo per burst and does not inflate totals on growth", () => {
+    const store = new VerifiedStrikeStore({ now: () => BASE_TS });
+
+    store.ingest({ type: "JAB", source: "camera_inference", ts: BASE_TS });
+    const first = store.ingest({ type: "CROSS", source: "camera_inference", ts: BASE_TS + 400 });
+    expect(first.combo?.label).toBe("1-2 COMBO");
+
+    const grown = store.ingest({ type: "HOOK", source: "camera_inference", ts: BASE_TS + 800 });
+    expect(grown.combo?.label).toBe("1-2-3 COMBO");
+
+    const state = store.getSnapshot();
+    expect(state.strikes).toHaveLength(3);
+    expect(state.totals.JAB).toBe(1);
+    expect(state.totals.CROSS).toBe(1);
+    expect(state.totals.HOOK).toBe(1);
+    expect(state.comboTotal).toBe(2);
+    expect(state.streak).toBe(1);
+
+    // A new burst inside the window extends the streak, it does not reset it.
+    const next = store.ingest({ type: "JAB", source: "camera_inference", ts: BASE_TS + 1_200 });
+    expect(next.combo).toBeUndefined();
+    const cross = store.ingest({ type: "CROSS", source: "camera_inference", ts: BASE_TS + 1_400 });
+    expect(cross.combo?.label).toBe("1-2 COMBO");
+    expect(store.getSnapshot().streak).toBe(2);
+  });
+
+  it("clears strikes and combos on reset but preserves classifier status", () => {
+    const store = new VerifiedStrikeStore({ now: () => BASE_TS });
+    store.ingest({ type: "JAB", source: "camera_inference", ts: BASE_TS });
+    expect(store.getSnapshot().classifier.available).toBe(true);
+
+    store.reset();
+    const state = store.getSnapshot();
+    expect(state.strikes).toHaveLength(0);
+    expect(state.combos).toHaveLength(0);
+    expect(state.comboTotal).toBe(0);
+    expect(state.streak).toBe(0);
+    expect(state.classifier.available).toBe(true);
+  });
+
+  it("expires the active streak when the combo window closes", () => {
+    const store = new VerifiedStrikeStore({ now: () => BASE_TS });
+    store.ingest({ type: "JAB", source: "camera_inference", ts: BASE_TS });
+    store.ingest({ type: "CROSS", source: "camera_inference", ts: BASE_TS + 300 });
+    expect(store.getSnapshot().streak).toBe(1);
+
+    expect(activeComboStreak(store.getSnapshot(), BASE_TS + 300 + COMBO_WINDOW_MS - 1)).toBe(1);
+    expect(activeComboStreak(store.getSnapshot(), BASE_TS + 300 + COMBO_WINDOW_MS + 1)).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+import type { PoseLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { readPose, type Pt } from "@/lib/pose-telemetry";
 
 /**
@@ -6,19 +7,13 @@ import { readPose, type Pt } from "@/lib/pose-telemetry";
  * lazily to keep it out of the SSR bundle.
  */
 
-let enginePromise: Promise<PoseLandmarkerLike> | null = null;
+let enginePromise: Promise<PoseLandmarker> | null = null;
 
-interface PoseLandmarkerLike {
-  detectForVideo(
-    video: HTMLVideoElement,
-    timestampMs: number,
-  ): { landmarks?: NormalizedLandmarkLike[][] };
-}
-interface NormalizedLandmarkLike extends Pt {
+export interface NormalizedLandmarkLike extends Pt {
   visibility?: number;
 }
 
-export function loadPoseEngine(): Promise<PoseLandmarkerLike> {
+export function loadPoseEngine(): Promise<PoseLandmarker> {
   if (!enginePromise) {
     enginePromise = (async () => {
       const { FilesetResolver, PoseLandmarker } = await import("@mediapipe/tasks-vision");
@@ -76,7 +71,7 @@ const JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
  */
 export function drawPoseCanvas(
   canvas: HTMLCanvasElement,
-  video: HTMLVideoElement,
+  frameSource: CanvasImageSource,
   pts: readonly NormalizedLandmarkLike[] | undefined,
   mirror: boolean,
   kneeAngles?: readonly [number, number],
@@ -95,8 +90,16 @@ export function drawPoseCanvas(
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const vw = video.videoWidth,
-    vh = video.videoHeight;
+  const vw =
+    (frameSource as HTMLVideoElement).videoWidth ||
+    (frameSource as HTMLCanvasElement).width ||
+    (frameSource as HTMLImageElement).naturalWidth ||
+    0;
+  const vh =
+    (frameSource as HTMLVideoElement).videoHeight ||
+    (frameSource as HTMLCanvasElement).height ||
+    (frameSource as HTMLImageElement).naturalHeight ||
+    0;
   if (!pts?.length || !vw || !vh) return;
 
   // object-fit: cover mapping from video pixels to canvas pixels
@@ -153,5 +156,3 @@ export function drawPoseCanvas(
     if (right) ctx.fillText(`${Math.round(kneeAngles[1])}°`, right.x - 34, right.y + 4);
   }
 }
-
-export type { NormalizedLandmarkLike };

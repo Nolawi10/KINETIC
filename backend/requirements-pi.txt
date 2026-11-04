@@ -1,0 +1,21 @@
+# KINETIC backend dependencies for Raspberry Pi 5 (Bookworm 64-bit).
+#
+# Picamera2 and libcamera are NOT installed with pip. They come from Raspberry
+# Pi OS apt packages (python3-picamera2, python3-libcamera) and are visible
+# inside a virtualenv created with:
+#
+#     python3 -m venv --system-site-packages venv
+#
+# Then:
+#
+#     source venv/bin/activate
+#     pip install -r backend/requirements-pi.txt
+#
+Flask>=3.0.0
+flask-cors>=4.0.0
+python-dotenv>=1.0.0
+joblib>=1.3.0
+numpy>=1.24.0
+setuptools>=65.0.0
+scikit-learn>=1.3.0
+Pillow>=10.0.0

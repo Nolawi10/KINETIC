@@ -11,11 +11,27 @@ export type MatSensorId = "M1" | "M2" | "M3" | "M4" | "M5" | "M6";
 export type DummyZoneId = "HEAD" | "CHEST" | "LEFT_WAIST" | "RIGHT_WAIST";
 export type SensorId = MatSensorId | DummyZoneId;
 export type EventType = "contact" | "impact";
-export type EventSource = "SIMULATED" | "HARDWARE";
+/**
+ * Strike classes the verified classifier may report. These values are never
+ * inferred from BlazePose landmarks; they must be attached by the classifier.
+ */
+export type StrikeType = "JAB" | "CROSS" | "HOOK" | "UPPERCUT" | "ROUNDHOUSE_KICK";
+export type EventSource =
+  | "camera_inference"
+  | "guided_demonstration"
+  | "hardware_telemetry"
+  | "SIMULATED"
+  | "HARDWARE";
 export type IntensityLevel = "light" | "medium" | "strong";
 export type SimMode = "SIMULATION" | "HARDWARE";
-export type SourceFilter = "ALL" | "SIMULATED" | "HARDWARE";
-export type SequenceKind = "footwork" | "combo";
+export type SourceFilter =
+  | "ALL"
+  | "guided_demonstration"
+  | "camera_inference"
+  | "hardware_telemetry"
+  | "SIMULATED"
+  | "HARDWARE";
+export type SequenceKind = "footwork" | "combo" | "guided_dummy" | "guided_mat";
 
 /**
  * MPU6050-style motion sample attached to dummy impacts.
@@ -48,6 +64,19 @@ export interface SensorEvent {
   source: EventSource;
   sessionId: string;
   intensity: IntensityLevel;
+  /** Movement label for guided demo or tactical display (e.g. 'HEAD — LEFT JAB'). */
+  movementLabel?: string;
+  /**
+   * Attached ONLY by a verified strike classifier. Pose landmarks can never
+   * populate this field, and guided demonstration events never carry it.
+   */
+  strikeType?: StrikeType;
+  /** Classifier confidence, 0–1. Only meaningful together with `strikeType`. */
+  classifierConfidence?: number;
+  /** Classifier/hardware reported strike velocity. Never estimated from pose. */
+  velocityMps?: number;
+  /** Classifier/hardware reported power. Never estimated from pose. */
+  powerW?: number;
   /** Only present for dummy impacts (MPU6050). */
   imu?: ImuReading;
 }
@@ -166,10 +195,15 @@ export function emptyCounterBlock(): CounterBlock {
 export interface SessionCounters {
   simulated: CounterBlock;
   hardware: CounterBlock;
+  guided: CounterBlock;
 }
 
 export function emptySessionCounters(): SessionCounters {
-  return { simulated: emptyCounterBlock(), hardware: emptyCounterBlock() };
+  return {
+    simulated: emptyCounterBlock(),
+    hardware: emptyCounterBlock(),
+    guided: emptyCounterBlock(),
+  };
 }
 
 export interface SequenceStatus {
@@ -178,6 +212,33 @@ export interface SequenceStatus {
   remaining: number;
   /** Total steps in the running sequence. */
   total: number;
+}
+
+export type GuidedDemoKind = "dummy" | "mat";
+
+/**
+ * Timestamp-based progress for one guided demonstration. `elapsedMs` is active
+ * time accumulated before the current running segment, so pausing is exact and
+ * resuming cannot drift or duplicate a step.
+ */
+export interface GuidedDemoProgress {
+  running: boolean;
+  paused: boolean;
+  /** Wall-clock start of the current active segment, or null while paused. */
+  startedAt: number | null;
+  /** Active milliseconds accumulated before `startedAt`. */
+  elapsedMs: number;
+  totalMs: number;
+  /** Index of the next demonstration step that has not fired yet. */
+  nextStep: number;
+  totalSteps: number;
+  /** Current movement label while the demo is running. */
+  label: string | null;
+}
+
+export interface GuidedDemoState {
+  dummy: GuidedDemoProgress;
+  mat: GuidedDemoProgress;
 }
 
 export interface SensorSimState {
@@ -195,4 +256,14 @@ export interface SensorSimState {
   dummyIntensity: IntensityLevel;
   sourceFilter: SourceFilter;
   sequence: SequenceStatus | null;
+  /** Both guided demonstrations run simultaneously and independently. */
+  guidedDemos: GuidedDemoState;
+  /** Active strike zone highlighted during guided dummy demonstration. */
+  activeDummyZone: DummyZoneId | null;
+  /** Active mat sensors highlighted during guided mat demonstration. */
+  activeMatSensors: readonly MatSensorId[];
+  /** Dummy-only movement label; never shown in the mat panel. */
+  activeDummyLabel: string | null;
+  /** Mat-only movement label; never shown in the dummy panel. */
+  activeMatLabel: string | null;
 }

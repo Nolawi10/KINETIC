@@ -7,13 +7,21 @@ import { Input } from "@/components/ui/input";
 
 interface HardwareNode {
   node_id: string;
-  node_type: string;
-  esp_ip: string;
-  protocol: string;
-  port: number;
-  name: string;
+  node_type?: string;
+  esp_ip?: string;
+  protocol?: string;
+  port?: number;
+  name?: string;
   status?: string;
   last_seen?: string;
+  stale?: boolean;
+  config?: {
+    name?: string;
+    node_type?: string;
+    esp_ip?: string;
+    protocol?: string;
+    port?: number;
+  };
 }
 
 interface HardwareForm {

@@ -1,16 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, RotateCcw, Square } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNow, useSensorSim } from "@/hooks/use-sensor-sim";
-import { countersForFilter, formatSessionDuration } from "@/lib/sensor-sim/engine";
+import {
+  countersForFilter,
+  formatSessionDuration,
+  guidedDemosActive,
+  guidedDemosPaused,
+} from "@/lib/sensor-sim/engine";
 import { sensorSimStore } from "@/lib/sensor-sim/store";
 import type { SourceFilter } from "@/lib/sensor-sim/types";
 import { MatSimulatorPanel } from "./sensor-sim/mat-panel";
+import { DummySimulatorPanel } from "./sensor-sim/dummy-panel";
 import EventStream from "./sensor-sim/event-stream";
 
-const SOURCE_FILTERS: readonly SourceFilter[] = ["ALL", "SIMULATED", "HARDWARE"];
+const SOURCE_FILTERS: readonly SourceFilter[] = [
+  "ALL",
+  "guided_demonstration",
+  "camera_inference",
+  "hardware_telemetry",
+  "SIMULATED",
+  "HARDWARE",
+];
 const FILTER_LABELS: Record<SourceFilter, string> = {
   ALL: "All sources",
+  guided_demonstration: "Guided demo",
+  camera_inference: "Vision AI",
+  hardware_telemetry: "Hardware",
   SIMULATED: "Simulated",
   HARDWARE: "Hardware",
 };
@@ -20,7 +36,7 @@ const FILTER_LABELS: Record<SourceFilter, string> = {
  * Simulation mode is the default; hardware mode pauses generation and only
  * displays events tagged HARDWARE by the future receiver.
  */
-export function SensorSimulator() {
+export function SensorSimulator({ demoEnabled = true }: { demoEnabled?: boolean }) {
   const state = useSensorSim();
   const now = useNow(1000);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -37,6 +53,8 @@ export function SensorSimulator() {
 
   const counters = countersForFilter(state.counters, state.sourceFilter);
   const duration = state.sessionStartedAt && now > 0 ? now - state.sessionStartedAt : 0;
+  const demoActive = guidedDemosActive(state.guidedDemos);
+  const demoPaused = guidedDemosPaused(state.guidedDemos);
 
   function requestReset() {
     if (!confirmReset) {
@@ -82,6 +100,11 @@ export function SensorSimulator() {
               Hardware
             </button>
           </div>
+          {demoActive && (
+            <span className="state-badge" data-active="true" data-guided-demo="true">
+              ● GUIDED DEMONSTRATION {demoPaused ? "PAUSED" : "ACTIVE"}
+            </span>
+          )}
           <span className="state-badge" data-sim-mode={state.mode}>
             {state.mode === "SIMULATION" ? "● DEMO MODE" : "● HARDWARE MODE"}
           </span>
@@ -110,17 +133,10 @@ export function SensorSimulator() {
         <div className="sim-toolbar-group sim-toolbar-stats">
           <span className="micro-label">
             SESSION {formatSessionDuration(duration)} · {counters.total} EVENTS ·{" "}
-            {state.counters.simulated.total} SIM / {state.counters.hardware.total} HW
+            {state.counters.simulated.total} SIM / {state.counters.hardware.total} HW /{" "}
+            {state.counters.guided.total} GUIDED
           </span>
           <div className="sim-toolbar-actions">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => sensorSimStore.stop()}
-              disabled={!state.running}
-            >
-              <Square /> Stop All
-            </Button>
             <Button
               size="sm"
               variant={confirmReset ? "destructive" : "ghost"}
@@ -133,6 +149,13 @@ export function SensorSimulator() {
           </div>
         </div>
       </div>
+
+      {!demoEnabled ? (
+        <p role="status" className="tactical-notice">
+          Guided demonstrations start automatically with a session. Press Start Session to run the
+          dummy and mat sequences together; the camera and pose overlay stay live.
+        </p>
+      ) : null}
 
       {state.mode === "HARDWARE" ? (
         <p role="status" className="tactical-notice">
@@ -150,8 +173,8 @@ export function SensorSimulator() {
       ) : null}
 
       <div className="sim-grid">
-        <MatSimulatorPanel />
-        <EventStream />
+        <MatSimulatorPanel demoEnabled={demoEnabled} />
+        <DummySimulatorPanel demoEnabled={demoEnabled} />
       </div>
 
       <EventStream />

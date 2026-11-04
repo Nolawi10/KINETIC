@@ -18,10 +18,11 @@ joblib>=1.3.0
 requests>=2.31.0
 setuptools>=65.0.0
 
-# Raspberry Pi Camera
-# picamera2 is typically installed via apt on Raspberry Pi OS
-# If not available via pip, install via: sudo apt install -y python3-picamera2
-picamera2
+# Raspberry Pi Camera & System Bindings
+# On Raspberry Pi OS Bookworm, install picamera2 via system apt:
+# sudo apt install -y python3-picamera2 python3-libcamera
+# And create your venv with --system-site-packages so it inherits system picamera2
+# (pip install picamera2 does not supply ARM64 libcamera wheels)
 
 # Image processing for camera streaming
 Pillow>=10.0.0

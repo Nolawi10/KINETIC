@@ -1,17 +1,38 @@
 import MusicPlayer from "@/components/music-player";
 import KineticPerformanceCoach from "@/components/kinetic-performance-coach";
-import SensorSimulator from "@/components/sensor-simulator";
 import Dummy3DContainer from "@/components/dummy-3d/dummy-3d-container";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Pause, Play, ScanLine, Square, Activity, Flame, Radio, Camera } from "lucide-react";
-import { TacticalShell, Instrument, tacticalHead } from "@/components/tactical-shell";
-import { TacticalCamera } from "@/components/tactical-camera";
-import { Button } from "@/components/ui/button";
+import {
+  ComboStreak,
+  LiveStrikeCounter,
+  RecentStrikeHistory,
+  StrikeComboHud,
+  VelocityPower,
+} from "@/components/strike-hud";
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { TacticalShell, tacticalHead } from "@/components/tactical-shell";
+import {
+  TacticalCamera,
+  type CameraProvider,
+  type CameraTelemetry,
+} from "@/components/tactical-camera";
 import { useAccount } from "@/components/kinetic-account";
 import { supabase } from "@/integrations/supabase/client";
 import { getPreset } from "@/lib/coaching-presets";
-import { formatTime, comboCount } from "@/lib/kinetic-data";
+import { guidedDemosActive, guidedDemosPaused } from "@/lib/sensor-sim/engine";
+import { sensorSimStore } from "@/lib/sensor-sim/store";
+import { useSensorSim } from "@/hooks/use-sensor-sim";
+import { useSessionTimer } from "@/hooks/use-session-timer";
+import { useVerifiedStrikes } from "@/hooks/use-verified-strikes";
+import { STRIKE_LABELS, verifiedStrikeStore } from "@/lib/strike-recognition";
+import { ROUND_SECONDS, TOTAL_ROUNDS, sessionRound } from "@/lib/session-timer";
+import { SessionHeader, type SessionStatus } from "@/components/live/session-header";
+import { SectionHeading } from "@/components/live/section-heading";
+import { SensorControlBar } from "@/components/sensor-sim/control-bar";
+import { MatSimulatorPanel } from "@/components/sensor-sim/mat-panel";
+import { DummySimulatorPanel } from "@/components/sensor-sim/dummy-panel";
+import EventStream from "@/components/sensor-sim/event-stream";
+
 export const Route = createFileRoute("/live")({
   validateSearch: (search: Record<string, unknown>) => ({
     preset: getPreset(search["preset"])?.id,
@@ -19,18 +40,10 @@ export const Route = createFileRoute("/live")({
   head: () =>
     tacticalHead(
       "Live Session",
-      "KINETIC tactical workout simulation with pose overlays, strike telemetry, coaching, and session recording.",
+      "KINETIC tactical workout simulation with pose overlays, verified strike telemetry, coaching, and session recording.",
     ),
   component: LivePage,
 });
-const strikes = ["Jab", "Cross", "Hook", "Uppercut", "Roundhouse Kick"];
-const prompts = [
-  "Keep right hand high on jab return.",
-  "Speed up lead leg retraction.",
-  "Strong base. Keep your weight centered.",
-  "Double jab, cross. Reset your guard.",
-  "Exhale through each strike.",
-];
 
 interface CameraStatus {
   available: boolean;
@@ -43,363 +56,400 @@ interface CameraStatus {
   error?: string;
 }
 
+const EMPTY_TELEMETRY: CameraTelemetry = {
+  feed: "standby",
+  provider: "webcam",
+  resolution: "",
+  engine: "idle",
+  poseFps: 0,
+};
+
 function LivePage() {
   const { preset: presetId } = Route.useSearch();
   const preset = getPreset(presetId);
-  const [seconds, setSeconds] = useState(preset ? 0 : 183);
-  const [paused, setPaused] = useState(false);
-  const [count, setCount] = useState(preset ? 0 : 124);
-  const [events, setEvents] = useState<number[]>([]);
+  const simState = useSensorSim();
+  const verified = useVerifiedStrikes();
+
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("idle");
   const [notice, setNotice] = useState("");
-  const [ended, setEnded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { user, signIn } = useAccount();
-  const navigate = useNavigate();
-  const [cameraStatus, setCameraStatus] = useState<CameraStatus | null>(null);
-  const [usePiCamera, setUsePiCamera] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(false);
+  const { user } = useAccount();
+  const timer = useSessionTimer();
+
+  // null means "not detected yet". TacticalCamera probes the backend before it
+  // opens any device, so a Pi never races its browser for the camera.
+  const [cameraProvider, setCameraProvider] = useState<CameraProvider | null>(null);
+  const [cameraTelemetry, setCameraTelemetry] = useState<CameraTelemetry>(EMPTY_TELEMETRY);
+  const [hardwareConnected, setHardwareConnected] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  /** Sensor events already offered to the verified-strike bridge. */
+  const seenSensorEventIdsRef = useRef<Set<string>>(new Set());
+
+  const handleProviderChange = useCallback((provider: CameraProvider) => {
+    setCameraProvider(provider);
+  }, []);
+
+  // A stable observer keeps the camera's telemetry effect from looping.
+  const handleCameraTelemetry = useCallback((telemetry: CameraTelemetry) => {
+    setCameraTelemetry((previous) =>
+      previous.feed === telemetry.feed &&
+      previous.provider === telemetry.provider &&
+      previous.resolution === telemetry.resolution &&
+      previous.engine === telemetry.engine &&
+      previous.poseFps === telemetry.poseFps
+        ? previous
+        : telemetry,
+    );
+  }, []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Poll backend for camera and hardware telemetry status.
   useEffect(() => {
-    const checkCamera = async () => {
+    let active = true;
+    const checkStatus = async () => {
       try {
-        const res = await fetch('/api/camera/status');
-        if (res.ok) {
-          const data = await res.json();
-          setCameraStatus(data);
-          if (data.available && data.running && data.source === 'raspberry_pi_camera') {
-            setUsePiCamera(true);
+        const [camRes, hwRes] = await Promise.all([
+          fetch("/api/camera/status").catch(() => null),
+          fetch("/api/hardware/nodes").catch(() => null),
+        ]);
+
+        if (camRes && camRes.ok) {
+          const camData: CameraStatus = await camRes.json();
+          if (active) {
+            if (camData.available && camData.running && camData.source === "raspberry_pi_camera") {
+              setCameraProvider((current) => current ?? "picamera");
+            }
           }
         }
-      } catch (e) {
-        // Ignore errors, will use browser camera
+
+        if (hwRes && hwRes.ok) {
+          const hwData = await hwRes.json();
+          if (active) {
+            const nodes = hwData.nodes || [];
+            setHardwareConnected(nodes.length > 0 && nodes.some((n: { stale?: boolean }) => !n.stale));
+          }
+        } else if (active) {
+          setHardwareConnected(false);
+        }
+      } catch {
+        if (active) setHardwareConnected(false);
       }
     };
-    checkCamera();
-    const interval = setInterval(checkCamera, 5000);
-    return () => clearInterval(interval);
+
+    void checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  const togglePiCamera = async () => {
-    setCameraLoading(true);
-    try {
-      if (usePiCamera) {
-        await fetch('/api/camera/stop', { method: 'POST' });
-        setUsePiCamera(false);
-      } else {
-        const res = await fetch('/api/camera/start', { method: 'POST' });
-        if (res.ok) {
-          setUsePiCamera(true);
-          const statusRes = await fetch('/api/camera/status');
-          if (statusRes.ok) {
-            setCameraStatus(await statusRes.json());
-          }
-        }
+  // Offer each sensor event to the verified bridge exactly once. The bridge
+  // rejects guided demonstration events and camera events without an explicit
+  // strike classification, so BlazePose landmarks can never inflate the HUD.
+  useEffect(() => {
+    for (const event of simState.events) {
+      if (seenSensorEventIdsRef.current.has(event.id)) continue;
+      seenSensorEventIdsRef.current.add(event.id);
+      if (event.source === "camera_inference" || event.source === "hardware_telemetry") {
+        verifiedStrikeStore.ingestSensorEvent(event);
       }
-    } catch (e) {
-      setNotice('Camera control failed');
-    } finally {
-      setCameraLoading(false);
+    }
+  }, [simState.events]);
+
+  const resetSessionView = () => {
+    seenSensorEventIdsRef.current.clear();
+    verifiedStrikeStore.reset();
+  };
+
+  const startSession = () => {
+    resetSessionView();
+    sensorSimStore.restartSession();
+    sensorSimStore.startGuidedDemonstrations();
+    timer.start();
+    setSessionStatus("running");
+    setNotice(
+      "Session started. Camera, pose estimation, and both guided demonstrations are active.",
+    );
+  };
+
+  const togglePause = () => {
+    if (sessionStatus === "running") {
+      timer.pause();
+      sensorSimStore.pauseGuidedDemonstrations();
+      setSessionStatus("paused");
+      setNotice("Session paused. Timer and both demonstrations are frozen; camera and pose stay live.");
+    } else if (sessionStatus === "paused") {
+      timer.resume();
+      sensorSimStore.resumeGuidedDemonstrations();
+      setSessionStatus("running");
+      setNotice("Session resumed. Timer and both demonstrations continue from where they stopped.");
     }
   };
-  useEffect(() => {
-    if (paused || ended) return;
-    const t = setInterval(() => {
-      setSeconds((v) => v + 1);
-      setCount((v) => v + 1);
-    }, 1000);
-    return () => clearInterval(t);
-  }, [paused, ended]);
-  useEffect(() => {
-    if (!paused && !ended) setEvents((v) => [...v.filter((t) => seconds - t <= 5), seconds]);
-  }, [seconds, paused, ended]);
-  const velocity = (8.4 + Math.sin(seconds * 0.8) * 2.3).toFixed(1);
-  async function save() {
-    setPaused(true);
+
+  const restartSession = () => {
+    resetSessionView();
+    sensorSimStore.restartSession();
+    sensorSimStore.startGuidedDemonstrations();
+    timer.start();
+    setSessionStatus("running");
+    setNotice(
+      "Session restarted. Timer, round, strikes, combos, events, and highlights reset; both demonstrations restarted.",
+    );
+  };
+
+  const endSession = async () => {
+    if (sessionStatus === "ended") return;
+    timer.pause();
+    sensorSimStore.stop();
+    setSessionStatus("ended");
+
     if (!user) {
-      signIn();
-      setNotice("Sign in, then select End & Save to keep this simulated session.");
+      setNotice("Session ended. Sign in if you want future sessions saved to your account.");
       return;
     }
+
+    const maxVelocity = verified.strikes.reduce(
+      (peak, strike) => Math.max(peak, strike.velocityMps ?? 0),
+      0,
+    );
     setSaving(true);
     const { error } = await supabase.from("training_sessions").insert({
       user_id: user.id,
       discipline: preset?.discipline ?? "MMA",
-      duration_seconds: seconds,
-      strikes: count,
-      max_speed: 12.4,
+      duration_seconds: timer.seconds,
+      strikes: verified.strikes.length,
+      // 0 means "no validated velocity source"; never a placeholder measurement.
+      max_speed: maxVelocity,
       simulated: true,
     });
     setSaving(false);
-    if (error) {
-      setNotice(error.message);
-      return;
-    }
-    setEnded(true);
-    setNotice("Session saved.");
-    void navigate({ to: "/analytics" });
-  }
+    setNotice(
+      error
+        ? `Session ended, but saving failed: ${error.message}`
+        : "Session ended and saved.",
+    );
+  };
+
+  const demoActive = guidedDemosActive(simState.guidedDemos);
+  const demoPaused = guidedDemosPaused(simState.guidedDemos);
+  const cameraEnabled = sessionStatus === "running" || sessionStatus === "paused";
+  const currentRound = sessionRound(timer.seconds);
+
+  const cameraLabel = !cameraEnabled
+    ? "STANDBY"
+    : cameraTelemetry.feed === "unavailable"
+      ? "OFFLINE"
+      : cameraTelemetry.feed === "connecting"
+        ? "LINKING"
+        : cameraProvider === "picamera"
+          ? "PI CAMERA"
+          : cameraProvider === "webcam"
+            ? "WEBCAM"
+            : "DETECTING";
+
+  const cameraAside = (
+    <span className="section-meta-chip" data-tone={cameraTelemetry.feed === "live" ? "ok" : "idle"}>
+      {cameraTelemetry.feed === "live"
+        ? `${cameraTelemetry.resolution || "LIVE"} · ${cameraTelemetry.poseFps || 0} POSE FPS`
+        : cameraLabel}
+    </span>
+  );
+
   return (
-    <TacticalShell
-      title="LIVE SESSION"
-      index="REAL-TIME COMBAT INTELLIGENCE"
-      actions={
-        <span className="state-badge">
-          <Radio size={12} /> SIMULATION MODE
-        </span>
-      }
-    >
-      <div className="session-control">
-        <div className="session-clock">
-          <span className="micro-label">SESSION TIME</span>
-          <strong>{formatTime(seconds)}</strong>
-        </div>
-        <div>
-          <strong>Round {Math.min(3, Math.floor(seconds / 180) + 1)} of 3</strong>
-          <span className="micro-label">{preset?.discipline ?? "MMA / KICKBOXING"}</span>
-        </div>
-        <span className="state-badge success-text">● Pi 5 Connected · simulated</span>
-        <div className="session-buttons">
-          <Button variant="outline" onClick={() => setPaused(!paused)} disabled={ended}>
-            {paused ? <Play /> : <Pause />}
-            {paused ? "Resume Session" : "Pause Session"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setNotice("Simulated drift calibrated. Baseline offset reset to 0.0°.")}
-          >
-            <ScanLine />
-            Calibrate Drift
-          </Button>
-          <Button variant="destructive" onClick={save} disabled={saving || ended}>
-            <Square />
-            {saving ? "Saving…" : "End & Save"}
-          </Button>
-        </div>
-      </div>
-      {preset && (
-        <div className="active-preset" data-tone={preset.tone}>
-          <span className="section-index">ACTIVE PRESET // {preset.tag}</span>
-          <h2>{preset.title}</h2>
-          <div>
-            {preset.parameters.map((p) => (
-              <span key={p}>{p}</span>
-            ))}
-          </div>
-          <p className="micro-label">SIMULATED COACHING PROTOCOL</p>
-        </div>
-      )}
-      {notice && (
-        <p role="status" className="tactical-notice">
+    <TacticalShell title="LIVE SESSION" index="REAL-TIME COMBAT INTELLIGENCE">
+      <SessionHeader
+        status={sessionStatus}
+        seconds={timer.seconds}
+        currentRound={currentRound}
+        totalRounds={TOTAL_ROUNDS}
+        roundSeconds={ROUND_SECONDS}
+        discipline={preset?.discipline ?? "MMA / KICKBOXING"}
+        presetTitle={preset?.title}
+        presetTag={preset?.tag}
+        presetParameters={preset?.parameters}
+        cameraLabel={cameraLabel}
+        hardwareConnected={hardwareConnected}
+        classifierOnline={verified.classifier.available}
+        demoActive={demoActive}
+        demoPaused={demoPaused}
+        saving={saving}
+        onStart={startSession}
+        onTogglePause={togglePause}
+        onRestart={restartSession}
+        onEnd={() => void endSession()}
+      />
+
+      {notice ? (
+        <p role="status" className="tactical-notice live-notice">
           {notice}
         </p>
-      )}
-      <div className="live-layout" style={{ width: "100%", maxWidth: "100%" }}>
-        <div style={{ minWidth: 0 }}>
-          <div className="canvas-heading">
-            <span className="micro-label">01 // VISION ENGINE</span>
-            <span className={usePiCamera && cameraStatus?.available ? "success-text" : ""}>
-              ● {usePiCamera && cameraStatus?.available ? "PI CAMERA ACTIVE" : "TRACKING ACTIVE · SIMULATED"}
-            </span>
-            {cameraStatus && (
-              <span className="micro-label" style={{ marginLeft: '10px' }}>
-                {cameraStatus.source === 'raspberry_pi_camera' 
-                  ? `PI CAM ${cameraStatus.width || 640}x${cameraStatus.height || 480} @ ${cameraStatus.fps || 15}FPS`
-                  : cameraStatus.available 
-                    ? 'BROWSER CAMERA' 
-                    : 'NO CAMERA'}
-              </span>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={togglePiCamera}
-              disabled={cameraLoading || !cameraStatus?.available}
-              style={{ marginLeft: 'auto' }}
-            >
-              <Camera size={14} />
-              {cameraLoading ? '...' : usePiCamera ? 'Stop Pi Cam' : 'Start Pi Cam'}
-            </Button>
-          </div>
-          {usePiCamera && cameraStatus?.available && cameraStatus?.running ? (
-            <div className="tactical-camera" style={{ position: 'relative', width: '100%', height: '400px', background: '#000' }}>
-              <img
-                src="/api/camera/stream"
-                alt="Pi Camera Feed"
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={() => setNotice('Pi camera stream error')}
-              />
-              <div className="camera-top">
-                <span className="success-text">
-                  ● LIVE PI CAMERA FEED
-                  <br />
-                  <small>
-                    {cameraStatus.width} × {cameraStatus.height} · {cameraStatus.fps} FPS · RASPBERRY PI
-                  </small>
-                </span>
+      ) : null}
+
+      <section className="live-section" aria-labelledby="training-section-title">
+        <SectionHeading
+          id="training-section-title"
+          index="02 // MAIN TRAINING AREA"
+          title="VISION & STRIKE TARGETS"
+          description="Live pose estimation beside the four-zone dummy. Camera and simulator events share one timeline."
+          aside={cameraAside}
+        />
+
+        <div className="training-grid">
+          <section className="training-panel camera-panel" aria-labelledby="camera-panel-title">
+            <header className="panel-head">
+              <div>
+                <span className="panel-kicker">CAMERA FEED // POSE OVERLAY</span>
+                <h2 id="camera-panel-title">LIVE VISION ENGINE</h2>
               </div>
-              {["tl", "tr", "bl", "br"].map((p) => (
-                <span key={p} className={`combat-bracket bracket-${p}`} />
-              ))}
-            </div>
-          ) : (
-            <TacticalCamera paused={paused} />
-          )}
-          <div style={{ marginTop: "10px" }}>
-            <Instrument title="TRAINING SYSTEMS" tag="MAT + DUMMY">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: "16px",
-                  alignItems: "stretch",
-                }}
+              <span
+                className="state-badge"
+                data-active={cameraTelemetry.feed === "live"}
+                data-tone={cameraTelemetry.feed === "unavailable" ? "bad" : undefined}
               >
-                <div style={{ minWidth: 0 }}>
-                  <SensorSimulator />
-                </div>
-                <div
-                  style={{
-                    border: "1px solid var(--border-combat)",
-                    background: "var(--surface-instrument)",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 12px",
-                      borderBottom: "1px solid var(--border-combat)",
-                      fontSize: "11px",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    <span>3D DUMMY SIMULATOR</span>
-                    <span style={{ color: "var(--muted-foreground)" }}>ROTATING · HIT ZONES</span>
-                  </div>
-                  {mounted ? (
-                    <div style={{ height: "400px" }}>
-                      <Dummy3DContainer />
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        height: "400px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "var(--muted-foreground)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "12px",
-                      }}
-                    >
-                      3D DUMMY SIMULATOR · LOADING
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Instrument>
+                ● {cameraLabel}
+              </span>
+            </header>
+
+            {/* Unified TacticalCamera with the real MediaPipe BlazePose pipeline.
+                Starting a session enables the camera; pausing never stops it. */}
+            <TacticalCamera
+              enabled={cameraEnabled}
+              paused={sessionStatus === "ended"}
+              preferredProvider={cameraProvider ?? undefined}
+              onProviderChange={handleProviderChange}
+              onTelemetry={handleCameraTelemetry}
+            />
+          </section>
+
+          <DummySimulatorPanel demoEnabled={cameraEnabled} />
+        </div>
+      </section>
+
+      <section className="live-section" aria-labelledby="mat-section-title">
+        <SectionHeading
+          id="mat-section-title"
+          index="03 // FOOTWORK"
+          title="SMART TRAINING MAT"
+          description="Six piezo zones in a 3×2 grid. Left and right footwork highlight independently as contacts land."
+          aside={
+            <span className="section-meta-chip" data-tone={simState.activeMatSensors.length ? "ok" : "idle"}>
+              {simState.activeMatSensors.length
+                ? `${simState.activeMatSensors.join(" · ")} ACTIVE`
+                : "MAT STANDBY"}
+            </span>
+          }
+        />
+        <MatSimulatorPanel demoEnabled={cameraEnabled} />
+      </section>
+
+      <section className="live-section" aria-labelledby="performance-section-title">
+        <SectionHeading
+          id="performance-section-title"
+          index="04 // PERFORMANCE DASHBOARD"
+          title="VERIFIED PERFORMANCE"
+          description="Strike, combo and streak metrics only count classifier-verified strikes. Demo and pose events stay separate."
+          aside={
+            <span
+              className="section-meta-chip"
+              data-tone={verified.classifier.available ? "ok" : "idle"}
+            >
+              {verified.strikes.length} VERIFIED STRIKES
+            </span>
+          }
+        />
+
+        <div className="performance-grid">
+          <div className="performance-cell perf-span-4">
+            <LiveStrikeCounter />
           </div>
-          <div style={{ marginTop: "10px" }}>
-            <Instrument title="MUSIC PLAYER" tag="PLAYLIST">
-              <div style={{ maxWidth: "600px" }}>
-                {mounted ? <MusicPlayer /> : <div style={{ height: "120px" }} />}
-              </div>
-            </Instrument>
+          <div className="performance-cell perf-span-5">
+            <StrikeComboHud />
           </div>
-          <div className="live-under">
-            <div>
-              <span>STANCE BALANCE</span>
-              <strong>
-                94.2 <small>%</small>
-              </strong>
-            </div>
-            <div>
-              <span>GUARD RECOVERY</span>
-              <strong>
-                240 <small>ms</small>
-              </strong>
-            </div>
-            <div>
-              <span>COMBAT IQ</span>
-              <strong>
-                92.4 <small>/ 100</small>
-              </strong>
-            </div>
+          <div className="performance-cell perf-span-3">
+            <RecentStrikeHistory />
           </div>
-          <div className="session-rounds">
-            {[1, 2, 3].map((r) => (
-              <div key={r} data-active={Math.min(3, Math.floor(seconds / 180) + 1) === r}>
-                <span>ROUND 0{r}</span>
-                <strong>{r === 1 ? "COMPLETE" : r === 2 ? "IN PROGRESS" : "UP NEXT"}</strong>
-              </div>
-            ))}
+          <div className="performance-cell perf-span-4">
+            <VelocityPower />
+          </div>
+          <div className="performance-cell perf-span-4">
+            <ComboStreak />
+          </div>
+          <div className="performance-cell perf-span-4">
+            <KineticPerformanceCoach
+              sessionState={{
+                running: sessionStatus === "running",
+                paused: sessionStatus === "paused",
+                seconds: timer.seconds,
+                count: verified.strikes.length,
+                events: verified.strikes.map((strike) => ({
+                  zone: STRIKE_LABELS[strike.type],
+                  timestamp: strike.ts,
+                })),
+                classifierAvailable: verified.classifier.available,
+              }}
+            />
           </div>
         </div>
-        <aside className="live-side">
-          <Instrument title="LIVE STRIKE GAUGE" tag="SIMULATED">
-            <div className="strike-number">
-              {count}
-              <Activity />
+      </section>
+
+      <section className="live-section" aria-labelledby="timeline-section-title">
+        <SectionHeading
+          id="timeline-section-title"
+          index="05 // EVENT TIMELINE"
+          title="CHRONOLOGICAL EVENT LOG"
+          description="Camera, demonstration and hardware activity in one stream. Filter the source without changing the data."
+          aside={<span className="section-meta-chip">{simState.events.length} LOGGED</span>}
+        />
+        <SensorControlBar demoEnabled={cameraEnabled} />
+        <EventStream />
+      </section>
+
+      <section className="live-section" aria-labelledby="modules-section-title">
+        <SectionHeading
+          id="modules-section-title"
+          index="06 // SESSION MODULES"
+          title="3D TARGET & AUDIO"
+          description="Supplementary tools: a rotatable 3D dummy and the session music player."
+        />
+        <div className="session-modules">
+          <div className="training-panel module-panel">
+            <header className="panel-head">
+              <div>
+                <span className="panel-kicker">SUPPLEMENTARY // HIT ZONES</span>
+                <h2>3D DUMMY SIMULATOR</h2>
+              </div>
+              <span className="state-badge">ROTATING · HIT ZONES</span>
+            </header>
+            {mounted ? (
+              <div className="module-canvas">
+                <Dummy3DContainer />
+              </div>
+            ) : (
+              <div className="module-canvas module-placeholder">3D DUMMY SIMULATOR · LOADING</div>
+            )}
+          </div>
+
+          <div className="training-panel module-panel">
+            <header className="panel-head">
+              <div>
+                <span className="panel-kicker">SUPPLEMENTARY // PLAYLIST</span>
+                <h2>MUSIC PLAYER</h2>
+              </div>
+              <span className="state-badge">SESSION AUDIO</span>
+            </header>
+            <div className="module-player">
+              {mounted ? <MusicPlayer /> : <div style={{ height: "120px" }} />}
             </div>
-            <div className="strike-tags">
-              {strikes.map((s, i) => (
-                <span key={s} data-active={count % 5 === i}>
-                  {s}
-                </span>
-              ))}
-            </div>
-          </Instrument>
-          <Instrument title="VELOCITY & POWER" tag="ESTIMATED">
-            <div className="gauge-value">
-              <span>Strike velocity</span>
-              <strong>
-                {velocity}
-                <small>m/s</small>
-              </strong>
-            </div>
-            <meter min="0" max="15" value={Number(velocity)} />
-            <div className="gauge-value">
-              <span>Peak impact</span>
-              <strong>
-                {Math.round(112 + Math.sin(seconds) * 17)}
-                <small>PSI</small>
-              </strong>
-            </div>
-            <meter min="0" max="160" value={125} />
-            <p className="micro-label">Illustrative force estimate, not a sensor reading.</p>
-          </Instrument>
-          <Instrument title="COMBO STREAK" tag="5-SECOND WINDOW">
-            <div className="combo-number">
-              <Flame />
-              {comboCount(events, seconds)}
-              <small>IN A ROW</small>
-            </div>
-          </Instrument>
-          <Instrument title="PERFORMANCE COACH" tag="AI ASSIST">
-            <KineticPerformanceCoach sessionState={{ seconds, count, events }} />
-          </Instrument>
-          <Instrument title="AI COACH FEED" tag="SIMULATED PROMPTS">
-            <div className="coach-feed">
-              {[0, 1, 2].map((_, i) => (
-                <div key={`${Math.floor(seconds / 5)}-${i}`}>
-                  <span>{formatTime(Math.max(0, seconds - i * 5))}</span>
-                  <p>{prompts[(Math.floor(seconds / 5) + i) % 5]}</p>
-                </div>
-              ))}
-            </div>
-          </Instrument>
-        </aside>
-      </div>
+          </div>
+        </div>
+      </section>
     </TacticalShell>
   );
 }
+
+export default LivePage;

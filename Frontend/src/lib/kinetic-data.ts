@@ -11,6 +11,8 @@ export const preferencesSchema = z.object({
   weight: z.string().max(40),
   stance: z.enum(["Orthodox", "Southpaw"]),
   goal: z.number().int().min(1).max(10000),
+  autoplayMusic: z.boolean().optional(),
+  pauseDuringCoaching: z.boolean().optional(),
 });
 export type Preferences = z.infer<typeof preferencesSchema>;
 export const defaultPreferences: Preferences = {
@@ -24,6 +26,8 @@ export const defaultPreferences: Preferences = {
   weight: "Lightweight · 155 lb",
   stance: "Orthodox",
   goal: 500,
+  autoplayMusic: false,
+  pauseDuringCoaching: true,
 };
 export const analysisSchema = z.object({
   id: z.string().uuid(),

@@ -72,8 +72,9 @@ class Config:
 
 app.config.from_object(Config)
 
-# Playlist configuration
-PLAYLIST_DIR = os.environ.get('KINETIC_PLAYLIST_DIR', r'E:\Kinetic Models\Playlist')
+# Playlist configuration. Defaults to the Playlist folder in this repository so
+# the same backend works on Windows, Linux, and Raspberry Pi.
+PLAYLIST_DIR = os.environ.get('KINETIC_PLAYLIST_DIR', os.path.join(BASE_DIR, 'Playlist'))
 MUSIC_EXTS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg'}
 
 
@@ -649,6 +650,130 @@ def get_coaching_presets():
 
     return jsonify({'presets': presets})
 
+
+# Music Playlist API
+@app.route('/api/playlist', methods=['GET'])
+def get_playlist():
+    try:
+        playlist_dir = PLAYLIST_DIR
+        tracks = []
+        if os.path.exists(playlist_dir):
+            for fname in sorted(os.listdir(playlist_dir)):
+                fpath = os.path.join(playlist_dir, fname)
+                if os.path.isfile(fpath):
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext in MUSIC_EXTS:
+                        # Try to extract basic info
+                        title = os.path.splitext(fname)[0]
+                        # Remove common prefixes
+                        tracks.append({
+                            'id': fname,
+                            'filename': fname,
+                            'title': title,
+                            'artist': '',
+                            'duration': None,
+                            'url': f'/api/playlist/stream/{fname}'
+                        })
+        return jsonify({'tracks': tracks, 'directory': playlist_dir})
+    except Exception as e:
+        return jsonify({'error': str(e), 'tracks': []}), 200
+
+
+@app.route('/api/playlist/stream/<path:filename>', methods=['GET'])
+def stream_playlist_file(filename):
+    try:
+        playlist_dir = PLAYLIST_DIR
+        # Prevent path traversal
+        safe_path = safe_join(playlist_dir, filename)
+        if not safe_path or not os.path.abspath(safe_path).startswith(os.path.abspath(playlist_dir)):
+            return jsonify({'error': 'Invalid path'}), 403
+        if not os.path.exists(safe_path) or not os.path.isfile(safe_path):
+            return jsonify({'error': 'File not found'}), 404
+        ext = os.path.splitext(safe_path)[1].lower()
+        if ext not in MUSIC_EXTS:
+            return jsonify({'error': 'Invalid file type'}), 403
+        mimetype = mimetypes.guess_type(safe_path)[0] or 'audio/mpeg'
+        return send_file(safe_path, mimetype=mimetype, as_attachment=False, conditional=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/playlist/refresh', methods=['POST'])
+def refresh_playlist():
+    try:
+        playlist_dir = PLAYLIST_DIR
+        exists = os.path.exists(playlist_dir)
+        return jsonify({'success': True, 'exists': exists, 'directory': playlist_dir})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Pi Camera API endpoints
+@app.route('/api/camera/status', methods=['GET'])
+def camera_status():
+    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
+        return jsonify({
+            'available': False,
+            'running': False,
+            'source': 'none',
+            'message': 'Pi camera not available'
+        }), 200
+    try:
+        service = get_pi_camera_service()
+        status = service.get_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'available': False,
+            'running': False,
+            'source': 'none',
+            'error': str(e)
+        }), 200
+
+
+@app.route('/api/camera/stream', methods=['GET'])
+def camera_stream():
+    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        service = get_pi_camera_service()
+        if not service.running:
+            return jsonify({'error': 'Camera not running'}), 503
+        response = Response(service.generate_mjpeg(),
+                            mimetype='multipart/x-mixed-replace; boundary=frame')
+        # Never buffer an MJPEG stream behind a proxy or cache.
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['X-Accel-Buffering'] = 'no'
+        return response
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/camera/start', methods=['POST'])
+def camera_start():
+    if not _PI_CAMERA_AVAILABLE or not start_pi_camera:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        success = start_pi_camera()
+        if success:
+            return jsonify({'status': 'started'}), 200
+        else:
+            return jsonify({'error': 'Failed to start camera'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/camera/stop', methods=['POST'])
+def camera_stop():
+    if not _PI_CAMERA_AVAILABLE or not stop_pi_camera:
+        return jsonify({'error': 'Pi camera not available'}), 503
+    try:
+        stop_pi_camera()
+        return jsonify({'status': 'stopped'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Helper functions
 def filter_sessions(sessions: List[Dict], range_filter: str, discipline: str) -> List[Dict]:
     """Filter sessions based on time range and discipline."""
@@ -798,21 +923,31 @@ def stop_frontend():
 
 atexit.register(stop_frontend)
 
-# Start dummy telemetry receiver
-if _DUMMY_TELEMETRY_AVAILABLE and start_receiver:
-    try:
-        start_receiver(app)
-        print("Dummy telemetry receiver initialized")
-    except Exception as e:
-        print(f"Failed to start dummy telemetry receiver: {e}")
+def start_backend_services() -> None:
+    """Start optional hardware services once, from the real entry point.
 
-# Start Pi camera service (graceful fallback if not available)
-if _PI_CAMERA_AVAILABLE and start_pi_camera:
-    try:
-        start_pi_camera()
-        print("Pi camera service initialized")
-    except Exception as e:
-        print(f"Failed to start Pi camera service: {e}")
+    Keeping this out of module import means `import app` (tests, tooling, or a
+    WSGI server) never opens the Pi camera or claims the telemetry UDP port.
+    """
+    if _DUMMY_TELEMETRY_AVAILABLE and start_receiver:
+        try:
+            start_receiver(app)
+            if stop_receiver:
+                atexit.register(stop_receiver)
+            print("Dummy telemetry receiver initialized")
+        except Exception as e:
+            print(f"Failed to start dummy telemetry receiver: {e}")
+
+    if _PI_CAMERA_AVAILABLE and start_pi_camera:
+        try:
+            if start_pi_camera():
+                if stop_pi_camera:
+                    atexit.register(stop_pi_camera)
+                print("Pi camera service initialized")
+            else:
+                print("Pi camera service not started (no Picamera2 or no camera detected)")
+        except Exception as e:
+            print(f"Failed to start Pi camera service: {e}")
 
 
 def _open_browser(url: str) -> None:
@@ -887,148 +1022,52 @@ def open_browser_when_ready(backend_port: int, timeout: float = 150.0):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    # start_pi.py owns the Pi frontend and browser so there is exactly one Vite
+    # process. Windows keeps the original one-command behaviour.
+    managed = os.environ.get('KINETIC_MANAGE_FRONTEND', '1').strip().lower()
+    manage_frontend = managed not in ('0', 'false', 'no', 'off')
 
     print("=" * 60)
     print("KINETIC Full Stack Application")
     print("=" * 60)
 
-    # 1. Start the Vite dev server (or attach to one already running)
-    start_frontend()
+    # Hardware services are owned by this process, once.
+    start_backend_services()
 
-    # 2. Open the browser once both servers respond
-    threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
+    if manage_frontend:
+        # 1. Start the Vite dev server (or attach to one already running)
+        start_frontend()
+
+        # 2. Open the browser once both servers respond
+        threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
 
     frontend_hint = ' or '.join(f'http://localhost:{p}' for p in FRONTEND_PORTS)
     print(f"Backend  (API):    http://localhost:{port}")
-    print(f"Frontend (app):    {frontend_hint} (starts shortly)")
+    if manage_frontend:
+        print(f"Frontend (app):    {frontend_hint} (starts shortly)")
+    else:
+        print("Frontend:          managed by start_pi.py")
     print("=" * 60)
-    print("Press CTRL+C to stop both servers")
+    print("Press CTRL+C to stop the backend")
     print("=" * 60)
 
     try:
-        app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'],
+        app.run(host=os.environ.get('HOST', '0.0.0.0'), port=port, debug=app.config['DEBUG'],
                 use_reloader=False, threaded=True)
     except KeyboardInterrupt:
         print("\nShutting down...")
     finally:
-        stop_frontend()
+        if manage_frontend:
+            stop_frontend()
+        if _PI_CAMERA_AVAILABLE and stop_pi_camera:
+            try:
+                stop_pi_camera()
+            except Exception:
+                pass
+        if _DUMMY_TELEMETRY_AVAILABLE and stop_receiver:
+            try:
+                stop_receiver()
+            except Exception:
+                pass
 
-
-# Music Playlist API
-@app.route('/api/playlist', methods=['GET'])
-def get_playlist():
-    try:
-        playlist_dir = PLAYLIST_DIR
-        tracks = []
-        if os.path.exists(playlist_dir):
-            for fname in sorted(os.listdir(playlist_dir)):
-                fpath = os.path.join(playlist_dir, fname)
-                if os.path.isfile(fpath):
-                    ext = os.path.splitext(fname)[1].lower()
-                    if ext in MUSIC_EXTS:
-                        # Try to extract basic info
-                        title = os.path.splitext(fname)[0]
-                        # Remove common prefixes
-                        tracks.append({
-                            'id': fname,
-                            'filename': fname,
-                            'title': title,
-                            'artist': '',
-                            'duration': None,
-                            'url': f'/api/playlist/stream/{fname}'
-                        })
-        return jsonify({'tracks': tracks, 'directory': playlist_dir})
-    except Exception as e:
-        return jsonify({'error': str(e), 'tracks': []}), 200
-
-
-@app.route('/api/playlist/stream/<path:filename>', methods=['GET'])
-def stream_playlist_file(filename):
-    try:
-        playlist_dir = PLAYLIST_DIR
-        # Prevent path traversal
-        safe_path = safe_join(playlist_dir, filename)
-        if not safe_path or not os.path.abspath(safe_path).startswith(os.path.abspath(playlist_dir)):
-            return jsonify({'error': 'Invalid path'}), 403
-        if not os.path.exists(safe_path) or not os.path.isfile(safe_path):
-            return jsonify({'error': 'File not found'}), 404
-        ext = os.path.splitext(safe_path)[1].lower()
-        if ext not in MUSIC_EXTS:
-            return jsonify({'error': 'Invalid file type'}), 403
-        mimetype = mimetypes.guess_type(safe_path)[0] or 'audio/mpeg'
-        return send_file(safe_path, mimetype=mimetype, as_attachment=False, conditional=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/playlist/refresh', methods=['POST'])
-def refresh_playlist():
-    try:
-        playlist_dir = PLAYLIST_DIR
-        exists = os.path.exists(playlist_dir)
-        return jsonify({'success': True, 'exists': exists, 'directory': playlist_dir})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-# Pi Camera API endpoints
-@app.route('/api/camera/status', methods=['GET'])
-def camera_status():
-    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
-        return jsonify({
-            'available': False,
-            'running': False,
-            'source': 'none',
-            'message': 'Pi camera not available'
-        }), 200
-    try:
-        service = get_pi_camera_service()
-        status = service.get_status()
-        return jsonify(status)
-    except Exception as e:
-        return jsonify({
-            'available': False,
-            'running': False,
-            'source': 'none',
-            'error': str(e)
-        }), 200
-
-
-@app.route('/api/camera/stream', methods=['GET'])
-def camera_stream():
-    if not _PI_CAMERA_AVAILABLE or not get_pi_camera_service:
-        return jsonify({'error': 'Pi camera not available'}), 503
-    try:
-        service = get_pi_camera_service()
-        if not service.running:
-            return jsonify({'error': 'Camera not running'}), 503
-        return Response(service.generate_mjpeg(),
-                        mimetype='multipart/x-mixed-replace; boundary=frame')
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/camera/start', methods=['POST'])
-def camera_start():
-    if not _PI_CAMERA_AVAILABLE or not start_pi_camera:
-        return jsonify({'error': 'Pi camera not available'}), 503
-    try:
-        success = start_pi_camera()
-        if success:
-            return jsonify({'status': 'started'}), 200
-        else:
-            return jsonify({'error': 'Failed to start camera'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/camera/stop', methods=['POST'])
-def camera_stop():
-    if not _PI_CAMERA_AVAILABLE or not stop_pi_camera:
-        return jsonify({'error': 'Pi camera not available'}), 503
-    try:
-        stop_pi_camera()
-        return jsonify({'status': 'stopped'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 

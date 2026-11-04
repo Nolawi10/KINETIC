@@ -5,7 +5,10 @@ Tracks athlete performance metrics over time.
 """
 
 import numpy as np
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 from typing import Dict, List, Optional
 from datetime import datetime
 

@@ -42,7 +42,7 @@ function DummyMesh() {
         const latest = events[events.length - 1];
         if (latest && latest.id !== lastEventRef.current && latest.device === "DUMMY") {
           lastEventRef.current = latest.id;
-          const intensity = latest.intensity === "high" ? 0.35 : latest.intensity === "medium" ? 0.22 : 0.12;
+          const intensity = latest.intensity === "strong" ? 0.35 : latest.intensity === "medium" ? 0.22 : 0.12;
           reactionRef.current = {
             active: true,
             until: now + 350,
@@ -89,7 +89,7 @@ export function Dummy3DContent({
   onReset,
 }: {
   zoom: number;
-  cameraRef: React.RefObject<THREE.PerspectiveCamera>;
+  cameraRef: React.RefObject<THREE.PerspectiveCamera | null>;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onReset: () => void;
