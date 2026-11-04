@@ -100,18 +100,27 @@ class PiezoSimulator:
             size=self.n_channels
         )
     
-    def _get_zone_params(self, zone: str, movement: str, rng: np.random.Generator) -> PiezoWaveformParams:
+    def _get_zone_params(
+        self,
+        zone: str,
+        movement: Optional[str] = None,
+        rng: Optional[np.random.Generator] = None
+    ) -> PiezoWaveformParams:
         """
         Get waveform parameters for a specific zone and movement.
         
         Args:
             zone: Target zone identifier
-            movement: Movement class
-            rng: Random number generator
+            movement: Optional movement class. When omitted, base zone
+                parameters are used with neutral movement multipliers.
+            rng: Random number generator (uses default if None)
             
         Returns:
             PiezoWaveformParams instance
         """
+        if rng is None:
+            rng = np.random.default_rng()
+        
         # Base parameters from config
         zone_config = self.zone_parameters.get(zone, {})
         base_amplitude = zone_config.get("base_amplitude", 0.8)
@@ -322,7 +331,8 @@ class PiezoSimulator:
     def generate_event(
         self,
         target_zone: str,
-        rng: Optional[np.random.Generator] = None
+        rng: Optional[np.random.Generator] = None,
+        movement: Optional[str] = None
     ) -> Tuple[np.ndarray, np.ndarray, Dict]:
         """
         Generate a multi-channel piezo waveform for a single event.
@@ -330,6 +340,8 @@ class PiezoSimulator:
         Args:
             target_zone: Target zone where impact occurs
             rng: Random number generator (uses default if None)
+            movement: Optional movement class used to shape the waveform
+                (for example "jab", "cross", or "hook").
             
         Returns:
             Tuple of (waveforms, timestamps, metadata)
@@ -352,7 +364,7 @@ class PiezoSimulator:
         t = np.linspace(0, self.window_duration, n_samples)
         
         # Get waveform parameters for primary zone
-        params = self._get_zone_params(target_zone, rng)
+        params = self._get_zone_params(target_zone, movement=movement, rng=rng)
         
         # Initialize signals
         signals = np.zeros((self.n_channels, n_samples))
@@ -373,6 +385,7 @@ class PiezoSimulator:
         # Metadata
         metadata = {
             "target_zone": target_zone,
+            "movement_class": movement,
             "primary_channel": primary_channel,
             "amplitude": params.amplitude,
             "rise_time": params.rise_time,
@@ -411,7 +424,10 @@ class PiezoSimulator:
         results = []
         for event in events:
             target_zone = event.get("target_zone", "chest_zone")
-            waveforms, t, metadata = self.generate_event(target_zone, rng)
+            movement = event.get("movement_class") or event.get("movement")
+            waveforms, t, metadata = self.generate_event(
+                target_zone, rng, movement=movement
+            )
             metadata.update(event)
             results.append((waveforms, t, metadata))
         
